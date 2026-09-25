@@ -25,4 +25,42 @@ corepack pnpm build      # tsup → dist/cli.js
 node dist/cli.js --help  # 或 pnpm dev -- --help
 ```
 
-M0 仅为项目骨架：CLI 帮助展示项目名与入口，计划命令（runs / show / inspect / diff）在后续里程碑实现，当前不对外提供。
+## M2：SDK Recorder 与 JSONL 导入
+
+SDK 入口为 `agentlens` 包（`dist/index.js`）。Recorder 与 Provider 无关：Harness 启动一次 run、发出归一化事件、最后完成或失败该 run。事件在 `completeRun()`/`failRun()` 时才整体写入本地 SQLite（运行中的 run 不会写入半截数据）。
+
+```ts
+import { Recorder, SqliteTraceStore } from "agentlens";
+
+const store = SqliteTraceStore.open();      // 默认 <cwd>/.agentlens/agentlens.db
+const recorder = new Recorder({ store });
+
+const run = recorder.startRun({ agent: "my-agent", model: "model-x" });
+const t = run.emit("tool.started", { tool: "grep", input: { pattern: "TODO" } });
+run.emit("tool.completed", { tool: "grep", success: true }, { parentId: t.id });
+run.completeRun();                          // 或 run.failRun(error)
+store.close();
+```
+
+CLI 导入：将 JSONL trace 校验后写入同一 SQLite 存储（全部为本地处理，文件内容不上传）。
+
+```bash
+agentlens import trace.jsonl [--db ./.agentlens/agentlens.db]
+```
+
+JSONL 格式（`agentlens-trace` v1）：第一行为 run 元信息（不含 `events` 字段），之后每行一个事件，按原顺序保存。
+
+```jsonl
+{"format":"agentlens-trace","formatVersion":1,"kind":"run","run":{"id":"r1","startedAt":"...","status":"passed","metrics":{"toolCalls":0,"failedToolCalls":0}}}
+{"format":"agentlens-trace","formatVersion":1,"kind":"event","event":{"id":"e1","runId":"r1","timestamp":"...","type":"run.started","data":null}}
+```
+
+未知字段、格式错误、缺失/重复 run 行、事件先于 run 行、不受支持的 `formatVersion`、重复 run id 都会明确报错；导入是原子的，失败不会在数据库中留下部分数据。
+
+Demo Agent（`Run Start → Tool → Tool → Error → Tool → Complete`）：
+
+```bash
+corepack pnpm demo   # 写入 .agentlens/agentlens.db 并导出 demo-trace.jsonl
+```
+
+当前已实现命令仅 `import`；`runs` / `show` / `inspect` / `diff` 等命令在后续里程碑实现，尚未提供。

@@ -1,10 +1,21 @@
 import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
+
+// Bundlers (esbuild/tsup) rewrite `import from "node:sqlite"` to bare
+// "sqlite", which Node cannot resolve — the node:sqlite builtin has no
+// unprefixed alias. A require through createRequire keeps the specifier
+// opaque to the bundler while staying plain Node at runtime.
 import { AgentLensStorageError } from "../../core/errors.js";
 import type { JsonValue } from "../../core/json.js";
 import { parseRun, type Run } from "../../core/run.js";
 import { applyMigrations, MIGRATIONS } from "./migrations.js";
+
+const { DatabaseSync }: { DatabaseSync: typeof DatabaseSyncType } =
+  createRequire(import.meta.url)("node:sqlite") as {
+    DatabaseSync: typeof DatabaseSyncType;
+  };
 
 /** Local-first default: `<cwd>/.agentlens/agentlens.db`. */
 export function defaultDbPath(cwd = process.cwd()): string {
@@ -26,7 +37,7 @@ interface EventRow {
  * silently mangled events.
  */
 export class SqliteTraceStore {
-  private constructor(private readonly db: DatabaseSync) {}
+  private constructor(private readonly db: DatabaseSyncType) {}
 
   /** Opens (and migrates) a database at `path`, or in-memory when ":memory:". */
   static open(path: string | ":memory:" = defaultDbPath()): SqliteTraceStore {
@@ -172,7 +183,7 @@ export class SqliteTraceStore {
   }
 
   /** Direct access to the underlying database (migrations, integrity checks). */
-  get database(): DatabaseSync {
+  get database(): DatabaseSyncType {
     return this.db;
   }
 
