@@ -59,6 +59,7 @@ describe("agentlens CLI", () => {
       "runs",
       "inspect",
       "diff",
+      "ui",
     ]);
     expect(createProgram().helpInformation()).toContain(
       "Not yet implemented: show.",
