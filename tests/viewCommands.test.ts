@@ -129,6 +129,36 @@ describe("agentlens inspect", () => {
     );
   });
 
+  it("shows explicit endedAt in runs and tool io plus final payload in inspect", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, ["success-basic.json"]);
+
+    const table = await runCli(["runs", "--db", db]);
+    expect(process.exitCode).toBe(0);
+    const row = table.split("\n").find((l) => l.includes("run-success-basic"));
+    expect(row).toContain("2026-09-20T10:00:00.000Z");
+    expect(row).toContain("2026-09-20T10:01:12.400Z");
+
+    const out = await runCli(["inspect", "run-success-basic", "--db", db]);
+    expect(out).toContain('"path":"src/app.test.ts"');
+    expect(out).toContain('"bytes":2048');
+    expect(out).toContain('"passed":12');
+    expect(out).toContain('"failed":0');
+    expect(out).toContain('"summary":"fixed flaky test"');
+  });
+
+  it("shows a placeholder for a running run's missing endedAt", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, ["running-partial.json"]);
+    const table = await runCli(["runs", "--db", db]);
+    const row = table
+      .split("\n")
+      .find((l) => l.includes("run-running-partial"));
+    expect(row).toBeDefined();
+    // endedAt placeholder renders as "-" between startedAt and duration
+    expect(row).toMatch(/running.*\s-\s+-?\s*\d/);
+  });
+
   it("produces identical output on repeated inspection", async () => {
     const dir = tmpDir();
     const db = fixtureDb(dir, ["success-planned.json"]);

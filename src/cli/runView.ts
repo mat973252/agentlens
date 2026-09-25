@@ -72,13 +72,13 @@ export function formatRunsTable(runs: Run[]): string {
     return "No runs recorded.\n";
   }
   const lines = [
-    `${pad("ID", PAD_ID)} ${pad("STATUS", PAD_STATUS)} ${pad("AGENT", PAD_AGENT)} ${pad("MODEL", PAD_MODEL)} ${pad("STARTED", 25)} ${pad("DURATION", 9)} ${pad("EVENTS", 6)} TOOLS`,
+    `${pad("ID", PAD_ID)} ${pad("STATUS", PAD_STATUS)} ${pad("AGENT", PAD_AGENT)} ${pad("MODEL", PAD_MODEL)} ${pad("STARTED", 25)} ${pad("ENDED", 25)} ${pad("DURATION", 9)} ${pad("EVENTS", 6)} TOOLS`,
   ];
   for (const run of runs) {
     const duration = durationOf(run);
     const tools = `${run.metrics.toolCalls} (${run.metrics.failedToolCalls} failed)`;
     lines.push(
-      `${pad(run.id, PAD_ID)} ${pad(run.status, PAD_STATUS)} ${pad(field(run.agent), PAD_AGENT)} ${pad(field(run.model), PAD_MODEL)} ${pad(run.startedAt, 25)} ${pad(duration !== undefined ? formatDurationMs(duration) : "-", 9)} ${pad(String(run.events.length), 6)} ${tools}`,
+      `${pad(run.id, PAD_ID)} ${pad(run.status, PAD_STATUS)} ${pad(field(run.agent), PAD_AGENT)} ${pad(field(run.model), PAD_MODEL)} ${pad(run.startedAt, 25)} ${pad(field(run.endedAt), 25)} ${pad(duration !== undefined ? formatDurationMs(duration) : "-", 9)} ${pad(String(run.events.length), 6)} ${tools}`,
     );
   }
   return `${lines.join("\n")}\n`;
@@ -110,10 +110,29 @@ function toolOutcomes(run: Run): ToolOutcome[] {
   return outcomes;
 }
 
+const toolDetail = (event: AgentEvent): string => {
+  const data = event.data as {
+    input?: unknown;
+    output?: unknown;
+    durationMs?: number;
+    error?: string;
+  };
+  const parts: string[] = [];
+  if (event.type === "tool.started" && data.input !== undefined) {
+    parts.push(`input=${preview(data.input)}`);
+  }
+  if (data.output !== undefined) parts.push(`output=${preview(data.output)}`);
+  if (data.durationMs !== undefined)
+    parts.push(formatDurationMs(data.durationMs));
+  if (data.error !== undefined) parts.push(`error: ${data.error}`);
+  return parts.join(" ");
+};
+
 const eventSummary = (event: AgentEvent): string => {
   const tool = toolName(event);
   if (tool !== undefined) {
-    return `${event.type} ${tool}`;
+    const detail = toolDetail(event);
+    return `${event.type} ${tool}${detail !== "" ? ` ${detail}` : ""}`;
   }
   if (event.type === "error") {
     return `error ${errorMessage(event)}`;
@@ -170,6 +189,10 @@ export function formatRunInspect(run: Run): string {
       parts.push(formatDurationMs(data.durationMs));
     if (data.error !== undefined) parts.push(`error: ${data.error}`);
     out.push(`  ${i + 1}. ${name}  ${parts.join("  ")}`);
+    const input = (t.started.data as { input?: unknown }).input;
+    if (input !== undefined) out.push(`      input   ${preview(input)}`);
+    const output = (end.data as { output?: unknown }).output;
+    if (output !== undefined) out.push(`      output  ${preview(output)}`);
   });
 
   const errorEvents = run.events.filter(
@@ -202,5 +225,8 @@ export function formatRunInspect(run: Run): string {
         ? ` (${terminal.type} at ${terminal.timestamp})`
         : ""),
   );
+  if (terminal !== undefined && terminal.data !== null) {
+    out.push(`  Payload   ${preview(terminal.data, 120)}`);
+  }
   return `${out.join("\n")}\n`;
 }
