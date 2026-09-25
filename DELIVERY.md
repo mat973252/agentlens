@@ -93,6 +93,6 @@
 - 独立环境：Windows PowerShell、Git `core.autocrlf=true`、Node v24.19.0；最终提交的全新检出 `D:\code\aiproject\_review\agentlens-m7-de8d510` 中，冻结安装、lint、197/197 tests、build 通过。实际 `npm pack` 并在仓库外空目录安装 tarball，构建包的 `agentlens ui --help` 可运行，无须源码或开发依赖。
 - 终端端到端：在 Windows ConPTY 实际交互，使用 M6 Generic/Pi 成功与失败四份样本的数据库检查运行列表、A/B 选择、详情时间线、工具完整载荷分页、Diff、键盘导航与退出；非 TTY 和缺失数据库给出明确错误。最终包在 `NO_COLOR=1 --color ansi16` 的实际 TTY 中 SGR 数为 0，`q` 退出码为 0 且恢复终端。查看前后数据库 SHA-256 `98816809B26EBC3CC5FE16177A4AD79861DDD58F30132449D70CFB99D13F3CE9` 与修改时间不变。
 - 视觉审查：已目视检查 PR 中 Konsole 首页和详情截图，包含紧凑运行列表、左右分栏比较、详情标签、预览区、键位提示，以及参考用户网站的深色、薄荷色层级；图示由 Devin 提供，截图链接为有时效的 Devin 附件。没有复制 Claude Code 品牌资产。
-- CI：最终 PR 提交的 [运行 36109727177](https://github.com/mat973252/agentlens/actions/runs/36109727177) 已通过 Ubuntu Node 22/24 两项作业；合入后 `main` 的 CI 另行核查。
+- CI：最终 PR 提交的 [运行 36109727177](https://github.com/mat973252/agentlens/actions/runs/36109727177)、合入后的 [运行 36110184328](https://github.com/mat973252/agentlens/actions/runs/36110184328) 与本验收记录提交后的 [运行 36110274039](https://github.com/mat973252/agentlens/actions/runs/36110274039) 均通过 Ubuntu Node 22/24 两项作业。
 - 已知边界：本机验证的是 Windows ConPTY 终端协议，并非 Windows Terminal 应用本身；Node 22.13 最低补丁版未在本机单独运行。TUI 为只读本地视图，尚无 Relay 试用、Codex Adapter 或发布采纳证据。
 - 下一步：按项目规划准备 M8 Relay 真实试用，遵守 Relay 独立安全审查停点；两项目的 Node TUI 交付先完成 ctxpack M7。
