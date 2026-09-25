@@ -1,13 +1,13 @@
 # 里程碑交付记录
 
-状态日期：2026-09-25。项目文档与本地 Git 基线已建立；实现里程碑尚未验收。
+状态日期：2026-09-25。M0–M3 已独立验收并集成；M4–M7 尚未验收。
 
 | 阶段 | 交付结果 | 独立验收 | 状态 |
 | --- | --- | --- | --- |
 | M0 | 可安装 CLI、构建、测试、CI | 全新安装；`agentlens --help`；构建与测试 | 已验收 |
 | M1 | Event Schema、SQLite schema/migration、10+ fixtures | fixtures 写入、读取、序列化往返一致 | 已验收 |
 | M2 | SDK Recorder 与 JSONL 导入 | Demo Agent 从开始到完成的事件记录完整 | 已验收 |
-| M3 | `runs`、`inspect` | 无需打开数据库即可理解一次运行 | 未开始 |
+| M3 | `runs`、`inspect` | 无需打开数据库即可理解一次运行 | 已验收 |
 | M4 | `diff A B` | 对照成功与失败运行，在 30 秒内发现主要差异 | 未开始 |
 | M5 | 规则式循环检测 | 重复工具、文件、错误和 ping-pong 案例可复现 | 未开始 |
 | M6 | Pi、Generic JSONL，后续 Codex 适配 | 外部事件归一化后信息正确 | 未开始 |
@@ -44,3 +44,13 @@
 - 范围与许可：本地 SDK Recorder、严格 JSONL v1 格式及 `import` CLI；12 份 M1 fixture 的往返及生命周期、非法输入测试仍在测试集中。`LICENSE`、`PROJECT.md`、里程碑文档、CI 未被产品分支改动；`package.json` 仍为 Apache-2.0、Node `>=22.13`。Recorder 只在完成或失败时将整条 Run 原子写入，运行中状态未持久化；此为已知设计边界。
 - Ubuntu CI：PR 最终提交的 [运行 36100283463](https://github.com/mat973252/agentlens/actions/runs/36100283463) 与 `main` 提交 `9967c52` 的 [运行 36100344119](https://github.com/mat973252/agentlens/actions/runs/36100344119) 均显示 Node 22/24 两项通过。
 - 下一步：按 `docs/devin-m3.md` 单独派发 M3 的只读 `runs`/`inspect` 命令。
+
+## M3 验收记录（2026-09-25）
+
+- 源码：Devin Cloud 会话 `5f506e3c27dc4e63bc5055c4dd6c672b`，远端 `devin/m3-inspect` 最终提交 `27d79f87e022f77f6c1294bd036182c3c5a7c0c2` 已核对，并快进集成 `main`。首版 `565f608` 虽通过自动测试，但独立验收发现 `runs` 缺结束时间、`inspect` 隐去工具输入输出与最终 summary；已由 Devin 在同分支修复并补回归。M3 没有实现后续 Diff 等功能。
+- 独立环境与命令：Windows PowerShell、Git `core.autocrlf=true`、Node v24.19.0、pnpm 10.17.1；最终远端提交的全新检出位于 `D:\code\aiproject\_review\agentlens-m3-27d79f`。`corepack pnpm install --frozen-lockfile`、lint、106/106 tests、build 均通过；`git diff --check` 无误，Apache-2.0 与 Node `>=22.13` 保留。
+- CLI 端到端：从 M1 的成功、工具失败后恢复、取消和运行中四份 fixture 写入临时 SQLite，构建产物 `runs`/`inspect` 实际显示有序列表、起止时间、状态、Agent/模型、指标、工具输入输出及失败、事件顺序和最终 summary。重复输出逐字一致。M2 Demo 实际生成 DB/JSONL，`runs`/`inspect` 可读其 9 个事件。
+- 只读及错误路径：对 fixture DB 查看前后 SHA-256 与修改时间均不变，无 WAL/journal；缺失数据库不创建目录，未知 Run ID、非 SQLite 损坏文件、未来 schemaVersion 均以非零状态和明确错误退出。验收脚本在 `_review` 临时区，未进入产品仓库。
+- Ubuntu CI：`main` 提交 `27d79f8` 的 [运行 36101294948](https://github.com/mat973252/agentlens/actions/runs/36101294948) 已通过 Node 22/24 两项作业，各自完成冻结安装、lint、测试、构建与 CLI 帮助冒烟。
+- 已知边界：工具输入输出与结果载荷在终端中有长度上限，超出时以省略号提示；尚无两次运行 Diff、循环检测或外部 Provider 适配。Node 22.13 最低补丁版未在本机单独测试。
+- 下一步：按 `docs/devin-m4.md` 单独派发 M4 Diff。
