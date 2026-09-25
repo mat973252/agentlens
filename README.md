@@ -111,7 +111,7 @@ agentlens diff <runA> <runB> [--db ./.agentlens/agentlens.db]
 - 结果是确定的：同一事件序列总是产生同一报告。
 - 输出有界，较大运行不会失控：`maxSignalsPerRule`（每条规则最多列 10 条信号，按事件顺序取最早者）、`maxEvidencePerSignal`（每条信号最多 8 行 evidence）、`maxEventIdsPerSignal`（每条信号最多列 20 个事件 ID）。被截断的部分不会丢失：报告 `totalSignalCount` 始终保存全部命中数，notes 逐条说明每条规则命中多少次、展示前多少条；事件 ID 被截断时 evidence 的范围行（`events e1–e9 (N calls)`）仍覆盖全部出现次数。
 
-当前已实现命令为 `import`、`runs`、`inspect`、`diff`；`show`、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。
+当前已实现命令为 `import`、`runs`、`inspect`、`diff`、`ui`；`show`、Provider 适配、Replay 与云服务在后续里程碑实现，尚未提供。
 
 ## M6：外部格式 Adapter（Generic JSONL 与 Pi）
 
@@ -157,3 +157,23 @@ Pi 指开源 coding agent `pi`（`@earendil-works/pi-coding-agent`，仓库 `git
 
 已知边界：`usage`/`cost` 条目与 assistant 级 provider 元数据只保留在 `source`/`unmappedEntries` 原始载荷中（metrics 无对应字段，cacheRead/cacheWrite/cost 不进入指标）；`filesRead`/`filesWritten` 不从工具名推断；tool 事件的 `data` 受既有严格 schema 约束，不能内嵌 `source`（逐事件溯源见事件 id 规则 `pi-<entryId>`/`pi-tool-<toolCallId>`）；Pi 会话树的分支结构（parentId 树）按主链线性化为事件链。
 
+## M7：交互式终端界面（agentlens ui）
+
+```bash
+agentlens ui [--db ./.agentlens/agentlens.db] [--color auto|truecolor|ansi256|ansi16|none]
+```
+
+`ui` 从已安装的 npm 包（`bin`）直接运行，无网络依赖、无外部进程；打开前以 `SqliteTraceStore.openReadOnly` 只读加载全部 Run 后**立即关闭**数据库——界面运行期间不再持有任何数据库句柄，绝不创建缺失文件、不改写记录、不触发迁移；读取失败（缺失/损坏/非 AgentLens 库/不支持的 schemaVersion）与 M3 一致的明确报错 + 非零退出。
+
+界面（单一 `ui` 入口内多视图）：
+
+- **Home**：左侧 Run 列表（status glyph、ID、状态、时长、工具计数），右侧 `COMPARE A ⇄ B` 对比卡片（状态/耗时/tokens/工具/文件/事件/loop 计数 + 工具路径 A/B 行，缺失指标显示 `unknown`），宽度 ≥110 列并排、窄宽上下堆叠（≥80×24 可读，120×30 清晰分栏）。
+- **Detail**：Run 摘要条 + 标签页 `timeline · tools · errors · loops · inspect`。timeline 为按序事件（`+offset` + 摘要）；tools 为每次调用的输入/输出/错误；errors 为记录的错误事件；loops 复用 `detectPossibleLoops` 的只读信号；inspect 与 `agentlens inspect` 文本逐行一致。宽屏右栏即时预览所选条目详情，Enter 打开全屏 pager（长载荷不分行截断，可滚动）。
+- **Diff**：`d` 打开 A/B 完整 diff，输出与 `agentlens diff <a> <b>` 逐行一致（摘要、工具分布、错误、结果、时间线 diff），按 section 分页（Tab 跳转）。
+- 顶部 `M·` 标记 + 视图名 + `local · read-only` + Run 数 + 数据库路径；底部固定键位提示与当前终端尺寸。
+
+键盘：↑↓/`j`/`k` 或 PgUp/PgDn/Home/End 移动；Enter 选中（打开 detail / 展开 pager / 详情条目）；Tab 切换列表⇄对比焦点或 detail 标签页/diff section；`a`/`b` 标记 A/B、`x` 交换；`d` diff；`?` 键位表；Esc 返回；`q`/Ctrl+C 退出。所有按键被消费、不会漏键或进入插入态；Ctrl+C 或异常退出都会恢复光标与备用屏幕、关闭 raw mode，终端不留花屏。
+
+配色：终端暗色适配 mat973252.github.io 调色板（ink `#142121`/paper `#fbf9f8`/mint `#83cebe`/muted `#61706b`/teal `#4aab96` + 失败 `#e0705a`/警告 `#d9a848`/选区 `#274642`），自动按 `COLORTERM`/`TERM`/`WT_SESSION` 降级 truecolor→ansi256→ansi16→none；`NO_COLOR` 完全禁用色彩，`--color` 可手动指定。Logo 为文本标记 `M·`，不使用图片协议。
+
+终端要求：stdin/stdout 均为 TTY，否则报错并退出码 1（提示改用 `runs`/`inspect`/`diff`）；最小 50×12（提示小于要求），≥80×24 完整可用；SIGWINCH 实时重排不丢布局；含中文/emoji 内容按占宽正确对齐。已验证 Ubuntu (tmux, Konsole)；Windows Terminal 代码路径相同（Node raw mode + VT 序列），未在本环境验证。

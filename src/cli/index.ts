@@ -4,5 +4,5 @@ const program = createProgram();
 if (process.argv.length <= 2) {
   program.outputHelp();
 } else {
-  program.parse(process.argv);
+  void program.parseAsync(process.argv);
 }
