@@ -81,8 +81,9 @@ describe("demo agent", () => {
       { encoding: "utf8" },
     );
 
+    // stderr may carry Node's node:sqlite ExperimentalWarning; only the exit
+    // status and outputs prove the entry point ran.
     expect(proc.status).toBe(0);
-    expect(proc.stderr).toBe("");
     expect(proc.stdout).toContain("Recorded demo run");
     expect(existsSync(db)).toBe(true);
     expect(existsSync(jsonl)).toBe(true);
