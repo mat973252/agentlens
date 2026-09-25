@@ -6,7 +6,8 @@
  * Usage: pnpm demo [--db <path>] [--jsonl <path>]
  */
 import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Recorder } from "../src/core/recorder.js";
 import { serializeRunTraceJsonl } from "../src/schema/traceJsonl.js";
 import {
@@ -96,7 +97,14 @@ export function runDemoAgent(
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// True when executed as a script (`tsx examples/demo-agent.ts`): argv[1] is
+// an OS path (e.g. C:\... on Windows) while import.meta.url is a file URL —
+// compare resolved paths, never a string prefix of the URL.
+const isMainModule =
+  process.argv[1] !== undefined &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+
+if (isMainModule) {
   const args = process.argv.slice(2);
   const opt = (name: string, fallback: string) => {
     const i = args.indexOf(name);

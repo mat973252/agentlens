@@ -1,6 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { runDemoAgent } from "../examples/demo-agent.js";
 import { parseRunTraceJsonl } from "../src/schema/traceJsonl.js";
@@ -58,5 +61,33 @@ describe("demo agent", () => {
     store2.saveRun(parsed);
     expect(store2.getRun(result.runId)).toEqual(recorded);
     store2.close();
+  });
+
+  // Regression: the demo's entry-point guard must fire on every OS. On
+  // Windows argv[1] is `C:\path\demo-agent.ts` while import.meta.url is a
+  // `file:///C:/...` URL, so a string/URL comparison silently skipped main.
+  it("runs end to end when invoked as a script entry point", () => {
+    const dir = tmpDir();
+    const db = join(dir, "script.db");
+    const jsonl = join(dir, "script-trace.jsonl");
+    const tsx = createRequire(import.meta.url).resolve("tsx/cli");
+    const demo = fileURLToPath(
+      new URL("../examples/demo-agent.ts", import.meta.url),
+    );
+
+    const proc = spawnSync(
+      process.execPath,
+      [tsx, demo, "--db", db, "--jsonl", jsonl],
+      { encoding: "utf8" },
+    );
+
+    expect(proc.status).toBe(0);
+    expect(proc.stderr).toBe("");
+    expect(proc.stdout).toContain("Recorded demo run");
+    expect(existsSync(db)).toBe(true);
+    expect(existsSync(jsonl)).toBe(true);
+    expect(parseRunTraceJsonl(readFileSync(jsonl, "utf8")).run.status).toBe(
+      "passed",
+    );
   });
 });
