@@ -1,6 +1,6 @@
 # 里程碑交付记录
 
-状态日期：2026-09-25。M0–M3 已独立验收并集成；M4–M7 尚未验收。
+状态日期：2026-09-25。M0–M4 已独立验收并集成；M5–M7 尚未验收。
 
 | 阶段 | 交付结果 | 独立验收 | 状态 |
 | --- | --- | --- | --- |
@@ -8,7 +8,7 @@
 | M1 | Event Schema、SQLite schema/migration、10+ fixtures | fixtures 写入、读取、序列化往返一致 | 已验收 |
 | M2 | SDK Recorder 与 JSONL 导入 | Demo Agent 从开始到完成的事件记录完整 | 已验收 |
 | M3 | `runs`、`inspect` | 无需打开数据库即可理解一次运行 | 已验收 |
-| M4 | `diff A B` | 对照成功与失败运行，在 30 秒内发现主要差异 | 未开始 |
+| M4 | `diff A B` | 对照成功与失败运行，快速发现主要差异 | 已验收 |
 | M5 | 规则式循环检测 | 重复工具、文件、错误和 ping-pong 案例可复现 | 未开始 |
 | M6 | Pi、Generic JSONL，后续 Codex 适配 | 外部事件归一化后信息正确 | 未开始 |
 | M7 | Relay 真实试用 | 记录对照案例与集成成本 | 未开始 |
@@ -54,3 +54,13 @@
 - Ubuntu CI：`main` 提交 `27d79f8` 的 [运行 36101294948](https://github.com/mat973252/agentlens/actions/runs/36101294948) 已通过 Node 22/24 两项作业，各自完成冻结安装、lint、测试、构建与 CLI 帮助冒烟。
 - 已知边界：工具输入输出与结果载荷在终端中有长度上限，超出时以省略号提示；尚无两次运行 Diff、循环检测或外部 Provider 适配。Node 22.13 最低补丁版未在本机单独测试。
 - 下一步：按 `docs/devin-m4.md` 单独派发 M4 Diff。
+
+## M4 验收记录（2026-09-25）
+
+- 源码：Devin Cloud 会话 `7ca0811e1eba4ea18cf065317a9f8838`、PR [#3](https://github.com/mat973252/agentlens/pull/3)，最终提交 `a942641e35baf65b705d82fa7073686d6c606bd2`；远端分支及 PR head SHA 已核对，`main` 快进到同一提交，PR 显示 merged。
+- 独立环境与命令：Windows PowerShell、Git `core.autocrlf=true`、Node v24.19.0、pnpm 10.17.1；最终远端提交的全新检出 `D:\code\aiproject\_review\agentlens-m4-a942641`。冻结安装、lint、112/112 tests、build、构建产物 CLI/help 均通过；`git diff --check` 无误，Apache-2.0 与 Node `>=22.13` 保留。
+- Diff 端到端：将五份 M1 fixture 写入独立临时 SQLite；构建产物实际对比基础成功/致命工具失败、计划成功/重试耗尽、含缺失指标的运行中样本。输出含状态、时长、token 与工具指标的 A/B/变化值、按工具分布、错误、结果和明确匹配规则的时间线差异；缺失的 reasoning token 显示 `unknown`。同一输入重复输出逐字一致。基础成功对致命失败的输出可直接定位新增 shell 部署调用、`permission denied`、运行失败及工具路径差异；这是单样本人工观察，不证明产品层面的“30 秒内理解”指标。
+- 只读及错误路径：查看前后数据库 SHA-256 与修改时间不变，无 WAL/journal；缺失数据库不创建目录，未知或相同 Run ID、损坏数据库、未来 schemaVersion 均以非零状态和明确错误退出。验收脚本在 `_review` 临时区，未进入产品仓库。
+- Ubuntu CI：PR [运行 36102207227](https://github.com/mat973252/agentlens/actions/runs/36102207227) 与合入后 `main` 的 [运行 36102389561](https://github.com/mat973252/agentlens/actions/runs/36102389561) 均通过 Node 22/24 作业。
+- 已知边界：时间线以事件类型和工具名做最长公共子序列匹配，并非语义比较；大运行记录的对齐成本和输出长度尚未单独压测。错误按来源类型、工具和相同文本聚合，不代表根因相同。尚无 M5 循环检测、Provider 适配或 Replay。
+- 下一步：按 `docs/devin-m5.md` 单独派发规则式循环检测。
