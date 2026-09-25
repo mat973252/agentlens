@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | M0 | 可安装 CLI、构建、测试、CI | 全新安装；`agentlens --help`；构建与测试 | 已验收 |
 | M1 | Event Schema、SQLite schema/migration、10+ fixtures | fixtures 写入、读取、序列化往返一致 | 已验收 |
-| M2 | SDK Recorder 与 JSONL 导入 | Demo Agent 从开始到完成的事件记录完整 | 未开始 |
+| M2 | SDK Recorder 与 JSONL 导入 | Demo Agent 从开始到完成的事件记录完整 | 已验收 |
 | M3 | `runs`、`inspect` | 无需打开数据库即可理解一次运行 | 未开始 |
 | M4 | `diff A B` | 对照成功与失败运行，在 30 秒内发现主要差异 | 未开始 |
 | M5 | 规则式循环检测 | 重复工具、文件、错误和 ping-pong 案例可复现 | 未开始 |
@@ -34,3 +34,13 @@
 - Ubuntu CI：PR 最终提交的 [运行 36096755831](https://github.com/mat973252/agentlens/actions/runs/36096755831) 与 `main` 的 [运行 36096911155](https://github.com/mat973252/agentlens/actions/runs/36096911155) 均显示 Node 22/24 两项作业通过。
 - 已知边界：本机仅运行 Node v24.19.0，Node 22.13 最低小版本未在本机单独运行；Node 22/24 的托管 CI 使用各自当前补丁版。事件 `data` 为必需且可为 null；metrics 目前只约束 `failedToolCalls <= toolCalls`，不从事件流重算；M2 Recorder 与 JSONL 导入尚未实现。
 - 下一步：按 `docs/devin-m2.md` 单独派发 M2。
+
+## M2 验收记录（2026-09-25）
+
+- 源码：Devin Cloud 会话 `054e5b02fa5849d39115f40aba8b4795`、PR [#2](https://github.com/mat973252/agentlens/pull/2)，最终提交 `9967c52106bc738934c06fc3060342c4e9193d62`；远端分支及 PR head SHA 已核对，`main` 快进到同一提交，PR 显示 merged。
+- 返工：首版 `37be98c` 在 Windows 上 `examples/demo-agent.ts` 静默退出0但不生成 DB/JSONL，原因是直接比较 `import.meta.url` 与 Windows 路径。Devin 提交 `a976a7c` 修复跨平台入口，`9967c52` 使 Demo 子进程回归测试兼容 Node SQLite 实验警告；产品实现不再有该入口问题。
+- 独立环境与命令：Windows PowerShell、Git `core.autocrlf=true`、Node v24.19.0、pnpm 10.17.1；最终提交全新检出 `D:\code\aiproject\_review\agentlens-m2-final`。`corepack pnpm install --frozen-lockfile`、lint、94/94 tests、build 均通过，CLI help 仅列已实现的 `import`。
+- Demo 端到端：在独立临时目录实际运行 `corepack pnpm exec tsx examples/demo-agent.ts --db <demo.db> --jsonl <demo.jsonl>`，再以构建产物 `node dist/cli.js import <demo.jsonl> --db <imported.db>` 导入。两库各 1 个 Run、9 个有序事件，含 `run.started`、三次工具调用（一次失败）、`error` 与 `run.completed`；按 SQL 读出 runs/events 全字段的 JSON SHA-256 完全一致，覆盖顺序、parentId、状态与载荷。非法 JSONL 返回 1 且不创建目标数据库；重复导入返回 1，现有库仍为 1 Run、9 事件。
+- 范围与许可：本地 SDK Recorder、严格 JSONL v1 格式及 `import` CLI；12 份 M1 fixture 的往返及生命周期、非法输入测试仍在测试集中。`LICENSE`、`PROJECT.md`、里程碑文档、CI 未被产品分支改动；`package.json` 仍为 Apache-2.0、Node `>=22.13`。Recorder 只在完成或失败时将整条 Run 原子写入，运行中状态未持久化；此为已知设计边界。
+- Ubuntu CI：PR 最终提交的 [运行 36100283463](https://github.com/mat973252/agentlens/actions/runs/36100283463) 与 `main` 提交 `9967c52` 的 [运行 36100344119](https://github.com/mat973252/agentlens/actions/runs/36100344119) 均显示 Node 22/24 两项通过。
+- 下一步：按 `docs/devin-m3.md` 单独派发 M3 的只读 `runs`/`inspect` 命令。
