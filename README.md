@@ -14,7 +14,7 @@ V0.1 以真实失败/成功运行的记录和 Diff 演示为发布门槛；项�
 
 ## 开发环境
 
-- Node.js >= 22（`.nvmrc` 为 22）
+- Node.js >= 22.13（`node:sqlite` 在该版本起免 flag 可用；`.nvmrc` 为 22）
 - pnpm 10（`packageManager` 字段固定；推荐 `corepack enable` 后使用 `corepack pnpm`）
 
 ```bash
