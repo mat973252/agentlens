@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-timeout",
+    "startedAt": "2026-09-20T18:00:00.000Z",
+    "endedAt": "2026-09-20T18:10:00.000Z",
+    "agent": "generic-agent",
+    "model": "model-a",
+    "status": "failed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-timeout",
+        "timestamp": "2026-09-20T18:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-timeout",
+        "timestamp": "2026-09-20T18:00:05.000Z",
+        "type": "tool.started",
+        "data": { "tool": "shell", "input": { "command": "pnpm test --watch" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-timeout",
+        "timestamp": "2026-09-20T18:05:00.000Z",
+        "type": "error",
+        "data": { "kind": "timeout", "message": "tool 'shell' exceeded 300s deadline" }
+      },
+      {
+        "id": "e4",
+        "runId": "run-timeout",
+        "timestamp": "2026-09-20T18:10:00.000Z",
+        "type": "run.failed",
+        "data": { "reason": "run exceeded 600s wall-clock limit" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 600000,
+      "inputTokens": 2000,
+      "outputTokens": 300,
+      "toolCalls": 1,
+      "failedToolCalls": 0
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-running-partial",
+    "startedAt": "2026-09-20T20:00:00.000Z",
+    "agent": "generic-agent",
+    "model": "model-a",
+    "status": "running",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-running-partial",
+        "timestamp": "2026-09-20T20:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-running-partial",
+        "timestamp": "2026-09-20T20:00:03.000Z",
+        "type": "message.input",
+        "data": { "role": "user", "content": "list files" }
+      },
+      {
+        "id": "e3",
+        "runId": "run-running-partial",
+        "timestamp": "2026-09-20T20:00:05.000Z",
+        "type": "tool.started",
+        "data": { "tool": "list_dir", "input": { "path": "src/" } }
+      },
+      {
+        "id": "e4",
+        "runId": "run-running-partial",
+        "timestamp": "2026-09-20T20:00:05.500Z",
+        "type": "tool.completed",
+        "parentId": "e3",
+        "data": { "tool": "list_dir", "output": { "entries": ["a.ts", "b.ts"] }, "durationMs": 500, "success": true }
+      },
+      {
+        "id": "e5",
+        "runId": "run-running-partial",
+        "timestamp": "2026-09-20T20:00:20.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/a.ts" } }
+      }
+    ],
+    "metrics": {
+      "toolCalls": 2,
+      "failedToolCalls": 0,
+      "filesRead": 1
+    }
+  }
+}

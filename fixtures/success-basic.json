@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-success-basic",
+    "startedAt": "2026-09-20T10:00:00.000Z",
+    "endedAt": "2026-09-20T10:01:12.400Z",
+    "agent": "generic-agent",
+    "model": "model-a",
+    "status": "passed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:00:00.000Z",
+        "type": "run.started",
+        "data": { "task": "fix flaky test" }
+      },
+      {
+        "id": "e2",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:00:01.200Z",
+        "type": "message.input",
+        "data": { "role": "user", "content": "Investigate src/app.test.ts" }
+      },
+      {
+        "id": "e3",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:00:04.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/app.test.ts" } }
+      },
+      {
+        "id": "e4",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:00:04.300Z",
+        "type": "tool.completed",
+        "parentId": "e3",
+        "data": {
+          "tool": "read_file",
+          "output": { "bytes": 2048 },
+          "durationMs": 300,
+          "success": true
+        }
+      },
+      {
+        "id": "e5",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:00:30.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_test", "input": { "file": "src/app.test.ts" } }
+      },
+      {
+        "id": "e6",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:01:00.000Z",
+        "type": "tool.completed",
+        "parentId": "e5",
+        "data": {
+          "tool": "run_test",
+          "output": { "passed": 12, "failed": 0 },
+          "durationMs": 30000,
+          "success": true
+        }
+      },
+      {
+        "id": "e7",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:01:05.000Z",
+        "type": "message.output",
+        "data": { "role": "assistant", "content": "All tests pass." }
+      },
+      {
+        "id": "e8",
+        "runId": "run-success-basic",
+        "timestamp": "2026-09-20T10:01:12.400Z",
+        "type": "run.completed",
+        "data": { "summary": "fixed flaky test" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 72400,
+      "inputTokens": 4200,
+      "outputTokens": 900,
+      "toolCalls": 2,
+      "failedToolCalls": 0,
+      "filesRead": 1
+    }
+  }
+}

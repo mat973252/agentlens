@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-tool-failure-recovered",
+    "startedAt": "2026-09-20T12:00:00.000Z",
+    "endedAt": "2026-09-20T12:02:10.000Z",
+    "agent": "generic-agent",
+    "model": "model-a",
+    "status": "passed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:00:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_test", "input": { "file": "src/parser.test.ts" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:00:45.000Z",
+        "type": "tool.failed",
+        "parentId": "e2",
+        "data": {
+          "tool": "run_test",
+          "output": { "stderr": "AssertionError: expected 3 tokens, got 4" },
+          "durationMs": 35000,
+          "success": false,
+          "error": "test failed: 1 assertion"
+        }
+      },
+      {
+        "id": "e4",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:00:50.000Z",
+        "type": "reasoning.summary",
+        "data": { "text": "Tokenizer emits trailing whitespace token; adjust expected count." }
+      },
+      {
+        "id": "e5",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:01:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "edit_file", "input": { "path": "src/parser.test.ts" } }
+      },
+      {
+        "id": "e6",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:01:02.000Z",
+        "type": "tool.completed",
+        "parentId": "e5",
+        "data": { "tool": "edit_file", "output": { "linesChanged": 1 }, "durationMs": 2000, "success": true }
+      },
+      {
+        "id": "e7",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:01:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_test", "input": { "file": "src/parser.test.ts" } }
+      },
+      {
+        "id": "e8",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:02:00.000Z",
+        "type": "tool.completed",
+        "parentId": "e7",
+        "data": {
+          "tool": "run_test",
+          "output": { "passed": 20, "failed": 0 },
+          "durationMs": 50000,
+          "success": true
+        }
+      },
+      {
+        "id": "e9",
+        "runId": "run-tool-failure-recovered",
+        "timestamp": "2026-09-20T12:02:10.000Z",
+        "type": "run.completed",
+        "data": { "summary": "recovered after 1 tool failure" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 130000,
+      "inputTokens": 6100,
+      "outputTokens": 1400,
+      "toolCalls": 3,
+      "failedToolCalls": 1,
+      "filesWritten": 1
+    }
+  }
+}

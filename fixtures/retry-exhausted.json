@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-retry-exhausted",
+    "startedAt": "2026-09-20T15:00:00.000Z",
+    "endedAt": "2026-09-20T15:04:00.000Z",
+    "agent": "generic-agent",
+    "model": "model-a",
+    "status": "failed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:00:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_test", "input": { "file": "src/build.test.ts" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:01:00.000Z",
+        "type": "tool.failed",
+        "parentId": "e2",
+        "data": {
+          "tool": "run_test",
+          "output": { "stderr": "compile error: unknown symbol 'foo'" },
+          "durationMs": 50000,
+          "success": false,
+          "error": "compile error"
+        }
+      },
+      {
+        "id": "e4",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:01:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "edit_file", "input": { "path": "src/build.ts" } }
+      },
+      {
+        "id": "e5",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:01:15.000Z",
+        "type": "tool.completed",
+        "parentId": "e4",
+        "data": { "tool": "edit_file", "output": { "linesChanged": 2 }, "durationMs": 5000, "success": true }
+      },
+      {
+        "id": "e6",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:01:30.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_test", "input": { "file": "src/build.test.ts" } }
+      },
+      {
+        "id": "e7",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:02:30.000Z",
+        "type": "tool.failed",
+        "parentId": "e6",
+        "data": {
+          "tool": "run_test",
+          "output": { "stderr": "compile error: unknown symbol 'foo'" },
+          "durationMs": 60000,
+          "success": false,
+          "error": "compile error"
+        }
+      },
+      {
+        "id": "e8",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:03:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_test", "input": { "file": "src/build.test.ts" } }
+      },
+      {
+        "id": "e9",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:03:50.000Z",
+        "type": "tool.failed",
+        "parentId": "e8",
+        "data": {
+          "tool": "run_test",
+          "output": { "stderr": "compile error: unknown symbol 'foo'" },
+          "durationMs": 50000,
+          "success": false,
+          "error": "compile error"
+        }
+      },
+      {
+        "id": "e10",
+        "runId": "run-retry-exhausted",
+        "timestamp": "2026-09-20T15:04:00.000Z",
+        "type": "run.failed",
+        "data": { "reason": "compile error persisted after 3 attempts" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 240000,
+      "inputTokens": 8400,
+      "outputTokens": 1900,
+      "toolCalls": 4,
+      "failedToolCalls": 3
+    }
+  }
+}

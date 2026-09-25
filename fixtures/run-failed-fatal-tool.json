@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-failed-fatal-tool",
+    "startedAt": "2026-09-20T13:00:00.000Z",
+    "endedAt": "2026-09-20T13:01:30.000Z",
+    "agent": "generic-agent",
+    "model": "model-b",
+    "status": "failed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-failed-fatal-tool",
+        "timestamp": "2026-09-20T13:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-failed-fatal-tool",
+        "timestamp": "2026-09-20T13:00:20.000Z",
+        "type": "tool.started",
+        "data": { "tool": "shell", "input": { "command": "deploy --prod" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-failed-fatal-tool",
+        "timestamp": "2026-09-20T13:01:00.000Z",
+        "type": "tool.failed",
+        "parentId": "e2",
+        "data": {
+          "tool": "shell",
+          "output": { "exitCode": 1, "stderr": "permission denied" },
+          "durationMs": 40000,
+          "success": false,
+          "error": "permission denied"
+        }
+      },
+      {
+        "id": "e4",
+        "runId": "run-failed-fatal-tool",
+        "timestamp": "2026-09-20T13:01:10.000Z",
+        "type": "error",
+        "data": { "kind": "unrecoverable", "message": "cannot deploy without credentials" }
+      },
+      {
+        "id": "e5",
+        "runId": "run-failed-fatal-tool",
+        "timestamp": "2026-09-20T13:01:30.000Z",
+        "type": "run.failed",
+        "data": { "reason": "permission denied" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 90000,
+      "inputTokens": 3000,
+      "outputTokens": 700,
+      "toolCalls": 1,
+      "failedToolCalls": 1
+    }
+  }
+}

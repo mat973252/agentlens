@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-cancelled",
+    "startedAt": "2026-09-20T19:00:00.000Z",
+    "endedAt": "2026-09-20T19:01:20.000Z",
+    "agent": "generic-agent",
+    "model": "model-b",
+    "status": "cancelled",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-cancelled",
+        "timestamp": "2026-09-20T19:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-cancelled",
+        "timestamp": "2026-09-20T19:00:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/index.ts" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-cancelled",
+        "timestamp": "2026-09-20T19:00:11.000Z",
+        "type": "tool.completed",
+        "parentId": "e2",
+        "data": { "tool": "read_file", "output": { "bytes": 4096 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e4",
+        "runId": "run-cancelled",
+        "timestamp": "2026-09-20T19:00:40.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "export" } }
+      },
+      {
+        "id": "e5",
+        "runId": "run-cancelled",
+        "timestamp": "2026-09-20T19:01:20.000Z",
+        "type": "error",
+        "data": { "kind": "cancelled", "message": "run cancelled by user", "source": "user" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 80000,
+      "inputTokens": 1500,
+      "outputTokens": 200,
+      "toolCalls": 2,
+      "failedToolCalls": 0,
+      "filesRead": 1
+    }
+  }
+}

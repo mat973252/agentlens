@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-loop-grep-repeat",
+    "startedAt": "2026-09-20T17:00:00.000Z",
+    "endedAt": "2026-09-20T17:05:00.000Z",
+    "agent": "explorer-agent",
+    "model": "model-c",
+    "status": "failed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:00:20.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "TODO", "path": "src/" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:00:21.000Z",
+        "type": "tool.completed",
+        "parentId": "e2",
+        "data": { "tool": "grep", "output": { "matches": 0 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e4",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:01:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "TODO", "path": "src/" } }
+      },
+      {
+        "id": "e5",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:01:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e4",
+        "data": { "tool": "grep", "output": { "matches": 0 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e6",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:02:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "TODO", "path": "src/" } }
+      },
+      {
+        "id": "e7",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:02:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e6",
+        "data": { "tool": "grep", "output": { "matches": 0 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e8",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:03:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "TODO", "path": "src/" } }
+      },
+      {
+        "id": "e9",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:03:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e8",
+        "data": { "tool": "grep", "output": { "matches": 0 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e10",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:04:00.000Z",
+        "type": "error",
+        "data": { "kind": "budget", "message": "repeated identical grep with no new information" }
+      },
+      {
+        "id": "e11",
+        "runId": "run-loop-grep-repeat",
+        "timestamp": "2026-09-20T17:05:00.000Z",
+        "type": "run.failed",
+        "data": { "reason": "no progress after 4 identical searches" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 300000,
+      "inputTokens": 15000,
+      "outputTokens": 3000,
+      "toolCalls": 4,
+      "failedToolCalls": 0
+    }
+  }
+}

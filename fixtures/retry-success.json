@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-retry-success",
+    "startedAt": "2026-09-20T14:00:00.000Z",
+    "endedAt": "2026-09-20T14:03:00.000Z",
+    "agent": "generic-agent",
+    "model": "model-a",
+    "status": "passed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:00:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "fetch", "input": { "url": "https://api.example.com/v1/data" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:00:40.000Z",
+        "type": "tool.failed",
+        "parentId": "e2",
+        "data": {
+          "tool": "fetch",
+          "durationMs": 30000,
+          "success": false,
+          "error": "HTTP 503 service unavailable"
+        }
+      },
+      {
+        "id": "e4",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:01:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "fetch", "input": { "url": "https://api.example.com/v1/data", "retry": 1 } }
+      },
+      {
+        "id": "e5",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:01:30.000Z",
+        "type": "tool.failed",
+        "parentId": "e4",
+        "data": {
+          "tool": "fetch",
+          "durationMs": 30000,
+          "success": false,
+          "error": "HTTP 503 service unavailable"
+        }
+      },
+      {
+        "id": "e6",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:02:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "fetch", "input": { "url": "https://api.example.com/v1/data", "retry": 2 } }
+      },
+      {
+        "id": "e7",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:02:20.000Z",
+        "type": "tool.completed",
+        "parentId": "e6",
+        "data": {
+          "tool": "fetch",
+          "output": { "status": 200, "bytes": 1024 },
+          "durationMs": 20000,
+          "success": true
+        }
+      },
+      {
+        "id": "e8",
+        "runId": "run-retry-success",
+        "timestamp": "2026-09-20T14:03:00.000Z",
+        "type": "run.completed",
+        "data": { "summary": "succeeded on third attempt" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 180000,
+      "inputTokens": 5000,
+      "outputTokens": 1100,
+      "toolCalls": 3,
+      "failedToolCalls": 2
+    }
+  }
+}
