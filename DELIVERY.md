@@ -1,6 +1,6 @@
 # 里程碑交付记录
 
-状态日期：2026-09-25。M0–M5 已独立验收并集成；M6–M7 尚未验收。
+状态日期：2026-09-25。M0–M6 已独立验收并集成；M7 Node TUI 与 M8 Relay 试用尚未验收。
 
 | 阶段 | 交付结果 | 独立验收 | 状态 |
 | --- | --- | --- | --- |
@@ -10,8 +10,9 @@
 | M3 | `runs`、`inspect` | 无需打开数据库即可理解一次运行 | 已验收 |
 | M4 | `diff A B` | 对照成功与失败运行，快速发现主要差异 | 已验收 |
 | M5 | 规则式循环检测 | 重复工具、文件、错误和 ping-pong 案例可复现 | 已验收 |
-| M6 | Pi、Generic JSONL，后续 Codex 适配 | 外部事件归一化后信息正确 | 未开始 |
-| M7 | Relay 真实试用 | 记录对照案例与集成成本 | 未开始 |
+| M6 | Pi、Generic JSONL，后续 Codex 适配 | 外部事件归一化后信息正确 | 已验收 |
+| M7 | Node 可打包交互式 TUI | 实际包安装、键盘操作与视觉核对 | 待派发 |
+| M8 | Relay 安全边界内真实试用 | 记录对照案例与集成成本 | 未开始 |
 
 每阶段验收记录须包含源码来源、版本或提交、运行环境、实际命令、结果、已知缺口及下一步决定。未验收成果不得标为完成；远端创建、推送和发布另行处理。
 
@@ -74,3 +75,13 @@
 - Ubuntu CI：最终 PR 提交的 [运行 36104121468](https://github.com/mat973252/agentlens/actions/runs/36104121468) 与合入后 `main` 的 [运行 36104390700](https://github.com/mat973252/agentlens/actions/runs/36104390700) 均通过 Node 22/24 两项作业。
 - 已知边界：所有信号仅表示 possible loop；合法轮询/退避、编辑与测试交替可能被标记。规则只看记录中的工具输入/结果/错误和少数进展事件，不能证明外部状态或语义进展。诊断区有数量限制，`inspect` 的完整原始时间线不在本次大输出限制范围内。Node 22.13 最低补丁版未在本机单独测试。
 - 下一步：按 `docs/devin-m6.md` 单独派发 Pi 与 Generic JSONL Adapter，Codex Adapter 留待后续。
+
+## M6 验收记录（2026-09-25）
+
+- 源码：Devin Cloud 会话 `32a6b219a26f4acc9f197cd0b43221f2`、PR [#5](https://github.com/mat973252/agentlens/pull/5)，最终提交 `98f8727196fc6e633d5e876e486c65f1034e2207`；远端分支与 PR head 一致，PR 已合并为 `main` 提交 `ed7ec5da249e5fba1de6b4464d065dfc4c49ee67`。
+- 独立环境：Windows PowerShell、Git `core.autocrlf=true`、Node v24.19.0、pnpm 10.17.1；最终提交全新检出 `D:\code\aiproject\_review\agentlens-m6-98f8727`。冻结安装、lint、171/171 tests、build、构建产物 CLI 帮助均通过。
+- 来源核对：Pi 输入依据公开 `earendil-works/pi` 的 `5fd446ca1843682e8da3fec4ceb71c42f56fbace` 提交，`session-manager.ts` 与 `before-compaction.jsonl` 可访问；本仓库成功样本 9/9 行与上游逐行完全一致，错误样本 15/16 行一致，剩余一行仅改 session ID 末位。README 记录格式版本与映射边界。样本来自上游公开 fixture，不是用户私有会话。
+- CLI 端到端：构建产物将 Generic/Pi 各一份成功及失败样本导入独立临时 SQLite；`runs` 显示四个 Run 的状态、起止时间和工具计数，`inspect` 展示工具输入/输出及错误，`diff` 给出状态、工具路径、错误和结果差异。Generic 成功样本重复导入非零退出，数据库 SHA-256 保持 `98816809B26EBC3CC5FE16177A4AD79861DDD58F30132449D70CFB99D13F3CE9`。非法/截断/未来格式与旧 `agentlens-trace` 回归由 M6 测试覆盖。
+- CI：PR [运行 36106139726](https://github.com/mat973252/agentlens/actions/runs/36106139726) 和 `main` [运行 36106546688](https://github.com/mat973252/agentlens/actions/runs/36106546688) 的 Ubuntu Node 22/24 作业均通过。
+- 已知边界：Pi usage/cache/cost/provider 的未映射字段存于原始载荷，不伪造缺失指标；会话分支树线性化；工具详情在文本输出中会截断长载荷。Node 22.13 最低补丁版尚未本机单独测试。M6 不包含 TUI、Relay 接入或 Codex Adapter。
+- 下一步：用户 2026-09-25 要求两项目后续均有可由 Node 包安装的可视化界面，使用 Claude Code 式紧凑 TUI 布局，并参考 GitHub 头像和个人网站配色；按 `docs/devin-m7-tui.md` 派发 M7。Relay 试用后移为 M8，仍受 Relay 安全审查停点约束。

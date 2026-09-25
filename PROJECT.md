@@ -1017,7 +1017,13 @@ AgentEvent
 
 ---
 
-# M7 — Relay Dogfood
+# M7 — Node TUI（2026-09-25 用户追加）
+
+先交付可通过 Node 包安装和运行的交互式终端界面：Run 列表、详情、Diff。紧凑布局参考 Claude Code TUI，配色和 M 标志参考用户 GitHub 头像与个人网站；具体任务和验收见 `docs/devin-m7-tui.md`。保留现有 CLI 和本地只读查询语义。TUI 成为后续公开发布验收门槛。
+
+---
+
+# M8 — Relay Dogfood
 
 让 Relay 接 AgentLens：
 
@@ -1070,6 +1076,9 @@ Generic JSONL
 ✓
 
 至少一个 Agent Adapter
+✓
+
+Node 包安装后可运行的交互式 TUI
 ✓
 ```
 
