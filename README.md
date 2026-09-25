@@ -63,4 +63,15 @@ Demo Agent（`Run Start → Tool → Tool → Error → Tool → Complete`）：
 corepack pnpm demo   # 写入 .agentlens/agentlens.db 并导出 demo-trace.jsonl
 ```
 
-当前已实现命令仅 `import`；`runs` / `show` / `inspect` / `diff` 等命令在后续里程碑实现，尚未提供。
+## M3：查看本地运行记录
+
+`runs` 与 `inspect` 以只读方式打开数据库：不创建缺失文件、不改写记录、不触发迁移。
+
+```bash
+agentlens runs [--db ./.agentlens/agentlens.db]        # 稳定排序的 Run 列表
+agentlens inspect <run-id> [--db ...]                  # 元信息、工具调用、错误、指标、时间线、结果
+```
+
+`inspect` 输出元信息（状态、Agent/模型、起止时间）、工具调用及失败原因、错误事件、metrics（tokens、文件数、工具调用数）、按序事件时间线和最终结果。缺失数据库、未知 Run ID、损坏或非 AgentLens 数据库、不支持的 schemaVersion 都以非零退出码明确报错。
+
+当前已实现命令为 `import`、`runs`、`inspect`；`show`、`diff`、循环检测、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。

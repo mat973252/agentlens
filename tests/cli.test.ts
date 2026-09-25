@@ -54,9 +54,13 @@ describe("agentlens CLI", () => {
 
   it("exposes only the implemented commands", () => {
     const program = createProgram();
-    expect(program.commands.map((c) => c.name())).toEqual(["import"]);
+    expect(program.commands.map((c) => c.name())).toEqual([
+      "import",
+      "runs",
+      "inspect",
+    ]);
     expect(createProgram().helpInformation()).toContain(
-      "Not yet implemented: runs, show, inspect, diff",
+      "Not yet implemented: show, diff",
     );
   });
 
