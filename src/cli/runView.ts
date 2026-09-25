@@ -1,3 +1,4 @@
+import { detectPossibleLoops } from "../core/loops.js";
 import type { Run } from "../core/run.js";
 import {
   durationOf,
@@ -9,6 +10,7 @@ import {
   toolName,
   toolOutcomes,
 } from "./eventDetails.js";
+import { formatLoopSection } from "./loopView.js";
 
 /** Pure text renderers for `agentlens runs` and `agentlens inspect`. */
 
@@ -40,7 +42,10 @@ export function formatRunsTable(runs: Run[]): string {
   return `${lines.join("\n")}\n`;
 }
 
-/** `agentlens inspect <run-id>`: metadata, tools, errors, metrics, timeline, result. */
+/**
+ * `agentlens inspect <run-id>`: metadata, tools, errors, metrics, timeline,
+ * rules-based possible-loop diagnostics, result.
+ */
 export function formatRunInspect(run: Run): string {
   const out: string[] = [`Run ${run.id}`, "", "Metadata"];
   out.push(`  Status    ${run.status}`);
@@ -114,6 +119,8 @@ export function formatRunInspect(run: Run): string {
       `  +${formatDurationMs(offsetOf(run, event))}  ${eventSummary(event)}`,
     );
   }
+
+  out.push(...formatLoopSection(detectPossibleLoops(run)));
 
   out.push("", "Result");
   const terminal = run.events.at(-1);

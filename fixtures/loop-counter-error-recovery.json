@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-loop-counter-error-recovery",
+    "startedAt": "2026-09-20T19:00:00.000Z",
+    "endedAt": "2026-09-20T19:03:00.000Z",
+    "agent": "generic-agent",
+    "model": "model-a",
+    "status": "passed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:00:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_cmd", "input": { "cmd": "pnpm build" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:00:40.000Z",
+        "type": "tool.failed",
+        "parentId": "e2",
+        "data": {
+          "tool": "run_cmd",
+          "durationMs": 30000,
+          "success": false,
+          "error": "network timeout fetching package"
+        }
+      },
+      {
+        "id": "e4",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:01:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_cmd", "input": { "cmd": "pnpm build" } }
+      },
+      {
+        "id": "e5",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:01:30.000Z",
+        "type": "tool.failed",
+        "parentId": "e4",
+        "data": {
+          "tool": "run_cmd",
+          "durationMs": 30000,
+          "success": false,
+          "error": "network timeout fetching package"
+        }
+      },
+      {
+        "id": "e6",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:02:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "run_cmd", "input": { "cmd": "pnpm build" } }
+      },
+      {
+        "id": "e7",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:02:20.000Z",
+        "type": "tool.completed",
+        "parentId": "e6",
+        "data": {
+          "tool": "run_cmd",
+          "output": { "exitCode": 0 },
+          "durationMs": 20000,
+          "success": true
+        }
+      },
+      {
+        "id": "e8",
+        "runId": "run-loop-counter-error-recovery",
+        "timestamp": "2026-09-20T19:03:00.000Z",
+        "type": "run.completed",
+        "data": { "summary": "build passed after transient network retries" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 180000,
+      "inputTokens": 9000,
+      "outputTokens": 1500,
+      "toolCalls": 3,
+      "failedToolCalls": 2
+    }
+  }
+}

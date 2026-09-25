@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-loop-no-progress",
+    "startedAt": "2026-09-20T21:00:00.000Z",
+    "endedAt": "2026-09-20T21:08:00.000Z",
+    "agent": "explorer-agent",
+    "model": "model-d",
+    "status": "failed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:00:30.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/a.ts" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:00:31.000Z",
+        "type": "tool.completed",
+        "parentId": "e2",
+        "data": { "tool": "read_file", "output": { "bytes": 512 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e4",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:01:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/b.ts" } }
+      },
+      {
+        "id": "e5",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:01:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e4",
+        "data": { "tool": "read_file", "output": { "bytes": 640 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e6",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:02:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/a.ts" } }
+      },
+      {
+        "id": "e7",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:02:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e6",
+        "data": { "tool": "read_file", "output": { "bytes": 512 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e8",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:03:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/b.ts" } }
+      },
+      {
+        "id": "e9",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:03:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e8",
+        "data": { "tool": "read_file", "output": { "bytes": 640 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e10",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:04:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/a.ts" } }
+      },
+      {
+        "id": "e11",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:04:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e10",
+        "data": { "tool": "read_file", "output": { "bytes": 512 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e12",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:05:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/b.ts" } }
+      },
+      {
+        "id": "e13",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:05:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e12",
+        "data": { "tool": "read_file", "output": { "bytes": 640 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e14",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:06:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/a.ts" } }
+      },
+      {
+        "id": "e15",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:06:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e14",
+        "data": { "tool": "read_file", "output": { "bytes": 512 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e16",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:07:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "read_file", "input": { "path": "src/b.ts" } }
+      },
+      {
+        "id": "e17",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:07:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e16",
+        "data": { "tool": "read_file", "output": { "bytes": 640 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e18",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:07:30.000Z",
+        "type": "error",
+        "data": { "kind": "budget", "message": "step budget exhausted re-reading the same two files" }
+      },
+      {
+        "id": "e19",
+        "runId": "run-loop-no-progress",
+        "timestamp": "2026-09-20T21:08:00.000Z",
+        "type": "run.failed",
+        "data": { "reason": "no observable progress" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 480000,
+      "inputTokens": 40000,
+      "outputTokens": 8000,
+      "toolCalls": 8,
+      "failedToolCalls": 0,
+      "filesRead": 8
+    }
+  }
+}

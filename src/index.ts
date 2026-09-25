@@ -15,6 +15,13 @@ export {
   type AgentEventType,
 } from "./core/event.js";
 export type { JsonValue } from "./core/json.js";
+export {
+  detectPossibleLoops,
+  LOOP_RULE_THRESHOLDS,
+  type LoopReport,
+  type LoopRule,
+  type LoopSignal,
+} from "./core/loops.js";
 export type { RunMetrics } from "./core/metrics.js";
 export {
   AgentLensRecorderError,

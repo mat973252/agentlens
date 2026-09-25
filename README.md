@@ -91,4 +91,23 @@ agentlens diff <runA> <runB> [--db ./.agentlens/agentlens.db]
 
 缺失数据库、未知 Run、相同 Run ID、损坏或非 AgentLens 数据库、不支持的 schemaVersion 都以非零退出码明确报错；相同输入重复输出一致。
 
-当前已实现命令为 `import`、`runs`、`inspect`、`diff`；`show`、循环检测、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。
+## M5：规则式循环检测
+
+`inspect` 新增只读的 `Possible loops` 诊断区，由纯规则入口 `detectPossibleLoops(run)`（自 `agentlens` 包导出）计算。全部判定只依赖已存储的 AgentEvent（工具名、输入、输出、错误文本、事件顺序），不做语义推断、不调用 LLM；每条信号给出规则名、触发证据（事件 ID 范围与次数）与置信边界，无命中时明确输出 `No loop signals detected.`。
+
+规则与阈值（`src/core/loops.ts` 的 `LOOP_RULE_THRESHOLDS`）：
+
+- `repeated-identical-call`：同一工具以完全相同的规范输入（JSON 键序归一化）调用 **≥3** 次，且每次结果相同（completed 比较 `output`，failed 比较 `error`）。结果不同的重复调用视为携带新信息，不报。
+- `repeated-file`：同一文件路径（输入中的 `path`/`file`/`filePath`/`filename`）被**同一工具**访问 **≥3** 次；证据列出各工具次数。
+- `repeated-error`：相同的错误（事件类型 + 工具 + 错误文本）在 `tool.failed`/`error` 事件中出现 **≥3** 次。
+- `tool-ping-pong`：工具调用签名（工具 + 规范输入）构成长度 **2–6** 的循环，且完整重复 **≥2** 个回合（≥2k 次调用）；按最小周期报告一次。
+- `no-observable-progress`：**≥4** 次连续的工具调用均为对更早相同调用的原样重放（相同输入且相同结果），中间没有 artifact/plan/verification 事件。未结束的工具调用无结果可比，既不计入重复也中断该序列。
+
+误报/漏报边界：
+
+- 所有信号都是 “possible loop”，不是已确认的语义循环。相同重试可能是合法的轮询或退避；编辑后重试、同一文件被多种工具触碰视为可能的进展。
+- 载荷无法证明进展：当 run 未记录 artifact/plan/verification 事件时，报告附注说明进展**无法证实也无法证伪**。
+- 只比较 recorded 的 input/output/error；不比较耗时、timestamp、message 文本，也不比较工具无法观测的外部状态。
+- 结果是确定的：同一事件序列总是产生同一报告；每条信号的 evidence 行数有上限（默认 8），较大运行不会无界输出。
+
+当前已实现命令为 `import`、`runs`、`inspect`、`diff`；`show`、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。

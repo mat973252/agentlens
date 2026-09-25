@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "run": {
+    "id": "run-loop-counter-varied-inputs",
+    "startedAt": "2026-09-20T18:00:00.000Z",
+    "endedAt": "2026-09-20T18:02:00.000Z",
+    "agent": "explorer-agent",
+    "model": "model-a",
+    "status": "passed",
+    "events": [
+      {
+        "id": "e1",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:00:00.000Z",
+        "type": "run.started",
+        "data": null
+      },
+      {
+        "id": "e2",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:00:10.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "TODO", "path": "src/a" } }
+      },
+      {
+        "id": "e3",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:00:11.000Z",
+        "type": "tool.completed",
+        "parentId": "e2",
+        "data": { "tool": "grep", "output": { "matches": 3 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e4",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:00:30.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "FIXME", "path": "src/b" } }
+      },
+      {
+        "id": "e5",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:00:31.000Z",
+        "type": "tool.completed",
+        "parentId": "e4",
+        "data": { "tool": "grep", "output": { "matches": 1 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e6",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:01:00.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "HACK", "path": "src/c" } }
+      },
+      {
+        "id": "e7",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:01:01.000Z",
+        "type": "tool.completed",
+        "parentId": "e6",
+        "data": { "tool": "grep", "output": { "matches": 0 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e8",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:01:30.000Z",
+        "type": "tool.started",
+        "data": { "tool": "grep", "input": { "pattern": "XXX", "path": "src/d" } }
+      },
+      {
+        "id": "e9",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:01:31.000Z",
+        "type": "tool.completed",
+        "parentId": "e8",
+        "data": { "tool": "grep", "output": { "matches": 2 }, "durationMs": 1000, "success": true }
+      },
+      {
+        "id": "e10",
+        "runId": "run-loop-counter-varied-inputs",
+        "timestamp": "2026-09-20T18:02:00.000Z",
+        "type": "run.completed",
+        "data": { "summary": "searched four different patterns in four paths" }
+      }
+    ],
+    "metrics": {
+      "durationMs": 120000,
+      "inputTokens": 12000,
+      "outputTokens": 2000,
+      "toolCalls": 4,
+      "failedToolCalls": 0
+    }
+  }
+}

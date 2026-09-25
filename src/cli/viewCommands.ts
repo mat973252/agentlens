@@ -14,7 +14,8 @@ const reportError = (error: unknown): void => {
 /**
  * `agentlens runs`: list recorded runs in stable order.
  * `agentlens inspect <run-id>`: metadata, tool calls, errors, metrics,
- * event timeline and final result for one run.
+ * event timeline, rules-based possible-loop diagnostics and final result
+ * for one run.
  * `agentlens diff <runA> <runB>`: deterministic comparison of two runs.
  * All read the store through SqliteTraceStore.openReadOnly: they never
  * create a missing database, modify rows, or run migrations.
@@ -42,7 +43,7 @@ export function registerViewCommands(program: Command): void {
   program
     .command("inspect")
     .description(
-      "Show one run: metadata, ordered events, tool calls, errors, metrics and result",
+      "Show one run: metadata, ordered events, tool calls, errors, metrics, possible-loop diagnostics and result",
     )
     .argument("<run-id>", "id of the run to inspect")
     .option("--db <path>", "SQLite database path", defaultDbPath())
