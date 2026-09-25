@@ -105,6 +105,9 @@ describe("SqliteTraceStore", () => {
     expect(() => SqliteTraceStore.open(dbPath)).toThrow(
       UnsupportedSchemaVersionError,
     );
+    // A failed open must release its handle: on Windows an open
+    // database file cannot be deleted (EPERM).
+    expect(() => rmSync(dbPath)).not.toThrow();
   });
 
   it("rejects invalid run input and persists nothing", () => {

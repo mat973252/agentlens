@@ -34,8 +34,13 @@ export class SqliteTraceStore {
       mkdirSync(dirname(path), { recursive: true });
     }
     const db = new DatabaseSync(path);
-    db.exec("PRAGMA foreign_keys = ON");
-    applyMigrations(db, MIGRATIONS);
+    try {
+      db.exec("PRAGMA foreign_keys = ON");
+      applyMigrations(db, MIGRATIONS);
+    } catch (error) {
+      db.close();
+      throw error;
+    }
     return new SqliteTraceStore(db);
   }
 
