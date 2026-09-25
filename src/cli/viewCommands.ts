@@ -1,5 +1,7 @@
 import type { Command } from "commander";
+import { AgentLensValidationError } from "../core/errors.js";
 import { defaultDbPath, SqliteTraceStore } from "../storage/sqlite/store.js";
+import { formatRunDiff } from "./diffView.js";
 import { formatRunInspect, formatRunsTable } from "./runView.js";
 
 const reportError = (error: unknown): void => {
@@ -13,7 +15,8 @@ const reportError = (error: unknown): void => {
  * `agentlens runs`: list recorded runs in stable order.
  * `agentlens inspect <run-id>`: metadata, tool calls, errors, metrics,
  * event timeline and final result for one run.
- * Both read the store through SqliteTraceStore.openReadOnly: they never
+ * `agentlens diff <runA> <runB>`: deterministic comparison of two runs.
+ * All read the store through SqliteTraceStore.openReadOnly: they never
  * create a missing database, modify rows, or run migrations.
  */
 export function registerViewCommands(program: Command): void {
@@ -48,6 +51,34 @@ export function registerViewCommands(program: Command): void {
         const store = SqliteTraceStore.openReadOnly(options.db);
         try {
           process.stdout.write(formatRunInspect(store.getRun(runId)));
+        } finally {
+          store.close();
+        }
+      } catch (error) {
+        reportError(error);
+      }
+    });
+
+  program
+    .command("diff")
+    .description(
+      "Compare two runs: metrics deltas, tool distribution, errors, outcome and timeline",
+    )
+    .argument("<runA>", "id of the first (baseline) run")
+    .argument("<runB>", "id of the second (comparison) run")
+    .option("--db <path>", "SQLite database path", defaultDbPath())
+    .action((runA: string, runB: string, options: { db: string }) => {
+      try {
+        if (runA === runB) {
+          throw new AgentLensValidationError(
+            `Cannot diff run ${runA} with itself; provide two different run ids`,
+          );
+        }
+        const store = SqliteTraceStore.openReadOnly(options.db);
+        try {
+          process.stdout.write(
+            formatRunDiff(store.getRun(runA), store.getRun(runB)),
+          );
         } finally {
           store.close();
         }

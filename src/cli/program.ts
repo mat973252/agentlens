@@ -11,7 +11,7 @@ export function createProgram(): Command {
     .name(CLI_NAME)
     .description(
       "AgentLens — record, inspect and diff agent executions.\n" +
-        "Implemented: import, runs, inspect. Not yet implemented: show, diff.",
+        "Implemented: import, runs, inspect, diff. Not yet implemented: show.",
     )
     .version(CLI_VERSION, "-v, --version", "print the version");
   registerImportCommand(program);

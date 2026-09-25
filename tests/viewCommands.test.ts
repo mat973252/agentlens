@@ -69,6 +69,24 @@ const runCli = async (args: string[]): Promise<string> => {
 const digest = (path: string) =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
 
+const expectCliError = async (
+  args: string[],
+  contains: string,
+): Promise<void> => {
+  process.exitCode = 0;
+  const errors: string[] = [];
+  const errSpy = vi.spyOn(console, "error").mockImplementation((chunk) => {
+    errors.push(String(chunk));
+  });
+  try {
+    await createProgram().parseAsync(["node", "agentlens", ...args]);
+  } finally {
+    errSpy.mockRestore();
+  }
+  expect(process.exitCode).toBe(1);
+  expect(errors.join("")).toContain(contains);
+};
+
 describe("agentlens runs", () => {
   it("lists runs in stable order with status, model and tool metrics", async () => {
     const dir = tmpDir();
@@ -185,6 +203,163 @@ describe("agentlens inspect", () => {
       expect.stringContaining("Run not found: no-such-run"),
     );
     errSpy.mockRestore();
+  });
+});
+
+describe("agentlens diff", () => {
+  it("compares a successful and a failed fixture deterministically", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, [
+      "success-basic.json",
+      "run-failed-fatal-tool.json",
+    ]);
+
+    const args = [
+      "diff",
+      "run-success-basic",
+      "run-failed-fatal-tool",
+      "--db",
+      db,
+    ];
+    const first = await runCli(args);
+    const second = await runCli(args);
+    expect(process.exitCode).toBe(0);
+    expect(first).toBe(second);
+
+    expect(first).toContain("Diff run-success-basic vs run-failed-fatal-tool");
+    expect(first).toContain("Status");
+    expect(first).toContain("passed -> failed");
+    expect(first).toContain("1m12s");
+    expect(first).toContain("1m30s");
+    expect(first).toContain("4200");
+    expect(first).toContain("3000");
+    expect(first).toContain("Reasoning tokens   unknown");
+    expect(first).toContain("Tool distribution");
+    expect(first).toContain("read_file            1      0      -1");
+    expect(first).toContain("shell                0      1      +1");
+    expect(first).toContain("tool.failed shell: permission denied");
+    expect(first).toContain("error: cannot deploy without credentials");
+    expect(first).toContain("A passed (run.completed");
+    expect(first).toContain("B failed (run.failed");
+    expect(first).toContain("longest common subsequence");
+    expect(first).toContain("- A5 +30.0s tool.started run_test");
+    expect(first).toContain("+ B3 +1m0s tool.failed shell");
+  });
+
+  it("exposes tool, error and timeline changes between two other runs", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, ["success-planned.json", "retry-exhausted.json"]);
+
+    const out = await runCli([
+      "diff",
+      "run-success-planned",
+      "run-retry-exhausted",
+      "--db",
+      db,
+    ]);
+    expect(process.exitCode).toBe(0);
+    expect(out).toContain("run_test             0      3      +3");
+    expect(out).toContain("edit_file            1      1      0");
+    expect(out).toContain("tool.failed run_test: compile error ×3");
+    expect(out).toContain("Change passed -> failed");
+    expect(out).toContain("- A4 +40.0s plan.updated");
+    expect(out).toContain("+ B7 +2m30s tool.failed run_test");
+  });
+
+  it("marks missing metrics and unfinished tool calls as unknown instead of zero", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, ["success-basic.json", "running-partial.json"]);
+
+    const out = await runCli([
+      "diff",
+      "run-success-basic",
+      "run-running-partial",
+      "--db",
+      db,
+    ]);
+    expect(process.exitCode).toBe(0);
+    expect(out).toContain(
+      "Duration           1m12s             unknown           unknown",
+    );
+    expect(out).toContain(
+      "Input tokens       4200              unknown           unknown",
+    );
+    expect(out).toContain(
+      "Output tokens      900               unknown           unknown",
+    );
+    expect(out).toContain(
+      "Reasoning tokens   unknown           unknown           unknown",
+    );
+    expect(out).toContain(
+      "Unfinished tools   0                 1                 +1",
+    );
+    expect(out).toContain("Unfinished: A 0; B 1 (read_file×1)");
+  });
+
+  it("leaves the database byte-identical and creates no wal/journal", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, [
+      "success-basic.json",
+      "run-failed-fatal-tool.json",
+    ]);
+    const before = digest(db);
+    const beforeMtime = statSync(db).mtimeMs;
+
+    await runCli([
+      "diff",
+      "run-success-basic",
+      "run-failed-fatal-tool",
+      "--db",
+      db,
+    ]);
+
+    expect(digest(db)).toBe(before);
+    expect(statSync(db).mtimeMs).toBe(beforeMtime);
+    expect(
+      readdirSync(dir).filter(
+        (f) => f.endsWith("-wal") || f.endsWith("-journal"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("fails clearly for missing, corrupt or unsupported databases", async () => {
+    const dir = tmpDir();
+    const missing = join(dir, "missing", "agentlens.db");
+    await expectCliError(
+      ["diff", "a", "b", "--db", missing],
+      "Database not found",
+    );
+    expect(readdirSync(dir)).toEqual([]);
+
+    const corrupt = join(dir, "corrupt.db");
+    writeFileSync(corrupt, "not a sqlite database at all");
+    await expectCliError(
+      ["diff", "a", "b", "--db", corrupt],
+      "corrupt or not a SQLite database",
+    );
+
+    const unsupported = fixtureDb(dir, ["success-basic.json"]);
+    const store = SqliteTraceStore.open(unsupported);
+    store.database.exec("PRAGMA user_version = 99");
+    store.close();
+    await expectCliError(
+      ["diff", "run-success-basic", "other-run", "--db", unsupported],
+      "Unsupported database schema version 99",
+    );
+  });
+
+  it("fails clearly for an unknown run id and for identical ids", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, ["success-basic.json"]);
+
+    await expectCliError(
+      ["diff", "run-success-basic", "no-such-run", "--db", db],
+      "Run not found: no-such-run",
+    );
+    await expectCliError(
+      ["diff", "run-success-basic", "run-success-basic", "--db", db],
+      "Cannot diff run run-success-basic with itself",
+    );
   });
 });
 

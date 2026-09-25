@@ -74,4 +74,21 @@ agentlens inspect <run-id> [--db ...]                  # 元信息、工具调�
 
 `inspect` 输出元信息（状态、Agent/模型、起止时间）、工具调用及失败原因、错误事件、metrics（tokens、文件数、工具调用数）、按序事件时间线和最终结果。缺失数据库、未知 Run ID、损坏或非 AgentLens 数据库、不支持的 schemaVersion 都以非零退出码明确报错。
 
-当前已实现命令为 `import`、`runs`、`inspect`；`show`、`diff`、循环检测、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。
+## M4：对比两次运行
+
+`diff` 与 `runs`/`inspect` 使用同样的只读打开方式，只比较同一数据库中两个不同 Run，不创建缺失文件、不改记录、不触发迁移。
+
+```bash
+agentlens diff <runA> <runB> [--db ./.agentlens/agentlens.db]
+```
+
+输出包含：
+
+- 概览：A/B 状态、duration、input/output/reasoning tokens、toolCalls/failedToolCalls 及可计算的 delta；缺失指标显示 `unknown`，不按 0 处理。
+- 工具分布：从事件记录统计每个工具的调用次数及差值，按绝对差值和工具名稳定排序；未结束的工具调用单独计数。
+- 错误与结果：列出记录的 `tool.failed`/`error` 事件和最终结果；仅按相同来源类型、工具和错误文本分组，不把不同来源的相同文本推断成同一根因。
+- 时间线差异：对事件签名（事件类型 + 工具名）执行确定性 LCS 对齐，`=`/`~`/`-`/`+` 表示相同、载荷不同、仅 A、仅 B；不匹配 ID、时间戳或载荷，也不作语义推断。
+
+缺失数据库、未知 Run、相同 Run ID、损坏或非 AgentLens 数据库、不支持的 schemaVersion 都以非零退出码明确报错；相同输入重复输出一致。
+
+当前已实现命令为 `import`、`runs`、`inspect`、`diff`；`show`、循环检测、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。
