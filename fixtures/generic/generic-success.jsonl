@@ -1,0 +1,7 @@
+{"format":"agentlens-generic","formatVersion":1,"kind":"run","run":{"id":"gen-success-1","agent":"demo-agent","model":"demo-model"}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"g1","type":"run.started","timestamp":"2026-09-25T10:00:00.000Z","data":{"note":"run started"}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"g2","type":"message.input","timestamp":"2026-09-25T10:00:01.000Z","parentId":"g1","data":{"text":"list the project files"}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"g3","type":"tool.started","timestamp":"2026-09-25T10:00:02.000Z","parentId":"g2","tool":"ls","input":{"path":"."},"toolCallId":"call-1"}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"g4","type":"tool.completed","timestamp":"2026-09-25T10:00:03.000Z","toolCallId":"call-1","output":{"files":["README.md","src/index.ts"]},"durationMs":12}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"g5","type":"message.output","timestamp":"2026-09-25T10:00:04.000Z","parentId":"g2","data":{"text":"Found 2 files: README.md, src/index.ts"}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"g6","type":"run.completed","timestamp":"2026-09-25T10:00:05.000Z","parentId":"g5","data":{"summary":"listed project files"}}}

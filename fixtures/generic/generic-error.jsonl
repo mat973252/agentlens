@@ -1,0 +1,7 @@
+{"format":"agentlens-generic","formatVersion":1,"kind":"run","run":{"id":"gen-error-1","agent":"demo-agent","model":"demo-model","status":"failed"}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e1","type":"run.started","timestamp":"2026-09-25T11:00:00.000Z","data":{"note":"run started"}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e2","type":"message.input","timestamp":"2026-09-25T11:00:01.000Z","parentId":"e1","data":{"text":"deploy the service"}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e3","type":"tool.started","timestamp":"2026-09-25T11:00:02.000Z","parentId":"e2","tool":"deploy","input":{"target":"prod"},"toolCallId":"call-9"}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e4","type":"tool.failed","timestamp":"2026-09-25T11:00:04.000Z","toolCallId":"call-9","error":"permission denied","output":{"stdout":"denied"},"durationMs":2000}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e5","type":"error","timestamp":"2026-09-25T11:00:05.000Z","parentId":"e2","data":{"error":"deploy failed: permission denied"}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e6","type":"run.failed","timestamp":"2026-09-25T11:00:06.000Z","parentId":"e5","data":{"error":"deploy failed"}}}
