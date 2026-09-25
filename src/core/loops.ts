@@ -27,8 +27,14 @@ export const LOOP_RULE_THRESHOLDS = {
   /** No-progress: consecutive tool calls re-running an earlier identical
    * call that returned an identical result. */
   noProgressStreakMin: 4,
-  /** Evidence lines emitted per rule before the summary is truncated. */
-  maxEvidencePerRule: 8,
+  /** Evidence lines emitted per signal before they are truncated. */
+  maxEvidencePerSignal: 8,
+  /** Signals reported per rule; the total match count is always preserved
+   * in the report notes and `totalSignalCount`. */
+  maxSignalsPerRule: 10,
+  /** Event ids listed per signal; the full count stays in the evidence
+   * range line ("events e1–e9 (N calls)"). */
+  maxEventIdsPerSignal: 20,
 } as const;
 
 export type LoopRule =
@@ -55,8 +61,15 @@ export interface LoopSignal {
 }
 
 export interface LoopReport {
-  /** Signals in fixed rule order, each with bounded evidence. */
+  /**
+   * Signals in fixed rule order, each with bounded evidence, bounded
+   * eventIds and at most LOOP_RULE_THRESHOLDS.maxSignalsPerRule entries
+   * per rule. Truncated rules keep their full match count in notes and
+   * in totalSignalCount.
+   */
   signals: LoopSignal[];
+  /** Total signals matched by every rule before per-rule truncation. */
+  totalSignalCount: number;
   /**
    * True when the run recorded at least one event type that can carry
    * observable state change (artifact, plan, verification events). When false,
@@ -200,8 +213,15 @@ const collectCalls = (run: Run): CallInfo[] => {
 const idRange = (ids: string[]): string =>
   ids.length === 1 ? (ids[0] ?? "") : `${ids[0]}–${ids.at(-1)}`;
 
+/** Rule matches before output capping: signals kept plus total matched. */
+interface RuleResult {
+  signals: LoopSignal[];
+  /** All groups that met the rule threshold, before maxSignalsPerRule. */
+  matched: number;
+}
+
 /** Rule 1: same tool + same input + same outcome + same result, >=3 times. */
-const repeatedIdenticalCalls = (calls: CallInfo[]): LoopSignal[] => {
+const repeatedIdenticalCalls = (calls: CallInfo[]): RuleResult => {
   const groups = new Map<string, CallInfo[]>();
   for (const call of calls) {
     if (call.outcome === undefined) continue; // unfinished calls carry no result
@@ -211,11 +231,14 @@ const repeatedIdenticalCalls = (calls: CallInfo[]): LoopSignal[] => {
     else groups.set(key, [call]);
   }
   const signals: LoopSignal[] = [];
+  let matched = 0;
   const ordered = [...groups.values()].sort(
     (a, b) => (a[0]?.index ?? 0) - (b[0]?.index ?? 0),
   );
   for (const group of ordered) {
     if (group.length < LOOP_RULE_THRESHOLDS.identicalCallMin) continue;
+    matched++;
+    if (signals.length >= LOOP_RULE_THRESHOLDS.maxSignalsPerRule) continue;
     const first = group[0];
     if (first === undefined) continue;
     const ids = group.map((c) => c.eventId);
@@ -237,7 +260,7 @@ const repeatedIdenticalCalls = (calls: CallInfo[]): LoopSignal[] => {
         "the payload alone cannot prove the repeated result carried no new information.",
     });
   }
-  return signals;
+  return { signals, matched };
 };
 
 /**
@@ -246,7 +269,7 @@ const repeatedIdenticalCalls = (calls: CallInfo[]): LoopSignal[] => {
  * access (test then edit the same file) is treated as plausible progress
  * and reported only when one tool alone still hits the threshold.
  */
-const repeatedFiles = (calls: CallInfo[]): LoopSignal[] => {
+const repeatedFiles = (calls: CallInfo[]): RuleResult => {
   const byPath = new Map<string, CallInfo[]>();
   for (const call of calls) {
     for (const target of fileTargetsOf(call.input)) {
@@ -255,40 +278,45 @@ const repeatedFiles = (calls: CallInfo[]): LoopSignal[] => {
       else byPath.set(target, [call]);
     }
   }
-  const signals: { signal: LoopSignal; firstIndex: number }[] = [];
+  const ordered: { path: string; group: CallInfo[]; firstIndex: number }[] = [];
   const paths = [...byPath.keys()].sort();
   for (const path of paths) {
     const group = byPath.get(path) ?? [];
+    ordered.push({ path, group, firstIndex: group[0]?.index ?? 0 });
+  }
+  ordered.sort((a, b) => a.firstIndex - b.firstIndex || 0);
+
+  const signals: LoopSignal[] = [];
+  let matched = 0;
+  for (const { path, group } of ordered) {
     const perTool = new Map<string, number>();
     for (const call of group) {
       perTool.set(call.tool, (perTool.get(call.tool) ?? 0) + 1);
     }
     const maxByTool = Math.max(...perTool.values());
     if (maxByTool < LOOP_RULE_THRESHOLDS.fileRepeatMin) continue;
+    matched++;
+    if (signals.length >= LOOP_RULE_THRESHOLDS.maxSignalsPerRule) continue;
     const breakdown = [...perTool.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([tool, count]) => `${tool} ×${count}`)
       .join(", ");
     const ids = group.map((c) => c.eventId);
     signals.push({
-      firstIndex: group[0]?.index ?? 0,
-      signal: {
-        rule: "repeated-file",
-        description: `${path} accessed ${group.length} times (${breakdown})`,
-        evidence: [`events ${idRange(ids)} (${group.length} calls)`],
-        eventIds: ids,
-        caveat:
-          "Re-reading a file after edits, or across test-fix cycles, is normal; " +
-          "tool payloads do not record whether file contents changed between accesses.",
-      },
+      rule: "repeated-file",
+      description: `${path} accessed ${group.length} times (${breakdown})`,
+      evidence: [`events ${idRange(ids)} (${group.length} calls)`],
+      eventIds: ids,
+      caveat:
+        "Re-reading a file after edits, or across test-fix cycles, is normal; " +
+        "tool payloads do not record whether file contents changed between accesses.",
     });
   }
-  signals.sort((a, b) => a.firstIndex - b.firstIndex || 0);
-  return signals.map((s) => s.signal);
+  return { signals, matched };
 };
 
 /** Rule 3: the same error (source type + tool + text) >=3 times. */
-const repeatedErrors = (run: Run): LoopSignal[] => {
+const repeatedErrors = (run: Run): RuleResult => {
   const groups = new Map<
     string,
     { label: string; ids: string[]; firstIndex: number }
@@ -308,8 +336,11 @@ const repeatedErrors = (run: Run): LoopSignal[] => {
     (a, b) => a.firstIndex - b.firstIndex,
   );
   const signals: LoopSignal[] = [];
+  let matched = 0;
   for (const group of ordered) {
     if (group.ids.length < LOOP_RULE_THRESHOLDS.errorRepeatMin) continue;
+    matched++;
+    if (signals.length >= LOOP_RULE_THRESHOLDS.maxSignalsPerRule) continue;
     signals.push({
       rule: "repeated-error",
       description: `"${previewJson(group.label, 100)}" repeated ${group.ids.length} times`,
@@ -320,7 +351,7 @@ const repeatedErrors = (run: Run): LoopSignal[] => {
         "only repetition with no intervening change suggests a stuck loop.",
     });
   }
-  return signals;
+  return { signals, matched };
 };
 
 /**
@@ -329,10 +360,11 @@ const repeatedErrors = (run: Run): LoopSignal[] => {
  * turns (>= 2k calls). Each run is reported at its minimal period so e.g.
  * a,b,a,b,a,b is reported once at k=2, not again at k=4.
  */
-const pingPongCycles = (calls: CallInfo[]): LoopSignal[] => {
+const pingPongCycles = (calls: CallInfo[]): RuleResult => {
   const sigs = calls.map((c) => c.signature);
   const reported: { start: number; end: number }[] = [];
   const signals: LoopSignal[] = [];
+  let matched = 0;
   for (
     let k = LOOP_RULE_THRESHOLDS.cycleMinLength;
     k <= LOOP_RULE_THRESHOLDS.cycleMaxLength;
@@ -363,7 +395,9 @@ const pingPongCycles = (calls: CallInfo[]): LoopSignal[] => {
       }
       const covered = reported.some((r) => start >= r.start && end <= r.end);
       if (!minimal || covered) continue;
+      matched++;
       reported.push({ start, end });
+      if (signals.length >= LOOP_RULE_THRESHOLDS.maxSignalsPerRule) continue;
       const span = calls.slice(start, end + 1);
       const turns = Math.floor(len / k);
       const extra = len % k;
@@ -384,7 +418,7 @@ const pingPongCycles = (calls: CallInfo[]): LoopSignal[] => {
       });
     }
   }
-  return signals;
+  return { signals, matched };
 };
 
 /** Event types that can carry observable state change between calls. */
@@ -403,7 +437,7 @@ const PROGRESS_EVENT_TYPES = new Set([
  * result, with no progress-carrying event in between. Unfinished calls
  * break the streak: a call still running may yet return new information.
  */
-const noProgressStreaks = (run: Run, calls: CallInfo[]): LoopSignal[] => {
+const noProgressStreaks = (run: Run, calls: CallInfo[]): RuleResult => {
   const callIndexByEventIndex = new Map<number, number>();
   calls.forEach((c, i) => {
     callIndexByEventIndex.set(c.index, i);
@@ -440,23 +474,27 @@ const noProgressStreaks = (run: Run, calls: CallInfo[]): LoopSignal[] => {
     }
   });
   flush();
-  return streaks.map((callIndexes) => {
-    const span = callIndexes
-      .map((i) => calls[i])
-      .filter((c): c is CallInfo => c !== undefined);
-    const kinds = [...new Set(span.map((c) => c.tool))].sort().join(", ");
-    return {
-      rule: "no-observable-progress" as const,
-      description: `${callIndexes.length} consecutive tool calls re-ran earlier identical calls and returned identical results (${kinds})`,
-      evidence: [
-        `events ${idRange(span.map((c) => c.eventId))} (${callIndexes.length} calls, no new inputs or results, no artifact/plan/verification events between them)`,
-      ],
-      eventIds: span.map((c) => c.eventId),
-      caveat:
-        "Progress may occur in payloads AgentLens cannot compare (message text, " +
-        "external state); this is an observable no-progress pattern, not proof the agent was stuck.",
-    };
-  });
+  const matched = streaks.length;
+  const signals = streaks
+    .slice(0, LOOP_RULE_THRESHOLDS.maxSignalsPerRule)
+    .map((callIndexes) => {
+      const span = callIndexes
+        .map((i) => calls[i])
+        .filter((c): c is CallInfo => c !== undefined);
+      const kinds = [...new Set(span.map((c) => c.tool))].sort().join(", ");
+      return {
+        rule: "no-observable-progress" as const,
+        description: `${callIndexes.length} consecutive tool calls re-ran earlier identical calls and returned identical results (${kinds})`,
+        evidence: [
+          `events ${idRange(span.map((c) => c.eventId))} (${callIndexes.length} calls, no new inputs or results, no artifact/plan/verification events between them)`,
+        ],
+        eventIds: span.map((c) => c.eventId),
+        caveat:
+          "Progress may occur in payloads AgentLens cannot compare (message text, " +
+          "external state); this is an observable no-progress pattern, not proof the agent was stuck.",
+      };
+    });
+  return { signals, matched };
 };
 
 /**
@@ -466,17 +504,45 @@ const noProgressStreaks = (run: Run, calls: CallInfo[]): LoopSignal[] => {
  */
 export function detectPossibleLoops(run: Run): LoopReport {
   const calls = collectCalls(run);
-  const signals: LoopSignal[] = [
-    ...repeatedIdenticalCalls(calls),
-    ...repeatedFiles(calls),
-    ...repeatedErrors(run),
-    ...pingPongCycles(calls),
-    ...noProgressStreaks(run, calls),
+  const ruleResults: [LoopRule, RuleResult][] = [
+    ["repeated-identical-call", repeatedIdenticalCalls(calls)],
+    ["repeated-file", repeatedFiles(calls)],
+    ["repeated-error", repeatedErrors(run)],
+    ["tool-ping-pong", pingPongCycles(calls)],
+    ["no-observable-progress", noProgressStreaks(run, calls)],
   ];
+  const notes: string[] = [];
+  const signals: LoopSignal[] = [];
+  let totalSignalCount = 0;
+  for (const [rule, result] of ruleResults) {
+    totalSignalCount += result.matched;
+    signals.push(...result.signals);
+    if (result.matched > result.signals.length) {
+      notes.push(
+        `${rule} matched ${result.matched} times; showing the first ${result.signals.length} in event order (cap maxSignalsPerRule=${LOOP_RULE_THRESHOLDS.maxSignalsPerRule})`,
+      );
+    }
+  }
+  for (const signal of signals) {
+    if (signal.eventIds.length > LOOP_RULE_THRESHOLDS.maxEventIdsPerSignal) {
+      const keep = LOOP_RULE_THRESHOLDS.maxEventIdsPerSignal;
+      const total = signal.eventIds.length;
+      signal.eventIds = signal.eventIds.slice(0, keep);
+      signal.evidence.push(
+        `eventIds truncated to first ${keep} of ${total} (cap maxEventIdsPerSignal=${keep}); the events range line above still covers all occurrences`,
+      );
+    }
+    if (signal.evidence.length > LOOP_RULE_THRESHOLDS.maxEvidencePerSignal) {
+      const keep = LOOP_RULE_THRESHOLDS.maxEvidencePerSignal;
+      signal.evidence = [
+        ...signal.evidence.slice(0, keep),
+        `… ${signal.evidence.length - keep} more evidence line(s) truncated`,
+      ];
+    }
+  }
   const progressEvidencePresent = run.events.some((event) =>
     PROGRESS_EVENT_TYPES.has(event.type),
   );
-  const notes: string[] = [];
   if (!progressEvidencePresent) {
     notes.push(
       "no artifact/plan/verification events recorded: progress cannot be confirmed or denied from stored payloads alone",
@@ -487,14 +553,5 @@ export function detectPossibleLoops(run: Run): LoopReport {
       "unfinished tool call(s) carry no result; they are excluded from repeat counts and break no-progress streaks",
     );
   }
-  for (const signal of signals) {
-    if (signal.evidence.length > LOOP_RULE_THRESHOLDS.maxEvidencePerRule) {
-      const keep = LOOP_RULE_THRESHOLDS.maxEvidencePerRule;
-      signal.evidence = [
-        ...signal.evidence.slice(0, keep),
-        `… ${signal.evidence.length - keep} more evidence line(s) truncated`,
-      ];
-    }
-  }
-  return { signals, progressEvidencePresent, notes };
+  return { signals, totalSignalCount, progressEvidencePresent, notes };
 }

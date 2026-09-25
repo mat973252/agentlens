@@ -11,6 +11,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createProgram } from "../src/cli/program.js";
+import type { AgentEvent, AgentEventType } from "../src/core/event.js";
+import type { JsonValue } from "../src/core/json.js";
 import {
   detectPossibleLoops,
   LOOP_RULE_THRESHOLDS,
@@ -163,17 +165,159 @@ describe("detectPossibleLoops: determinism and limits", () => {
   });
 
   it("bounds evidence lines per signal", () => {
-    expect(LOOP_RULE_THRESHOLDS.maxEvidencePerRule).toBeGreaterThan(0);
+    expect(LOOP_RULE_THRESHOLDS.maxEvidencePerSignal).toBeGreaterThan(0);
     for (const run of [
       fixtureRun("loop-no-progress.json"),
       fixtureRun("loop-read-pingpong.json"),
     ]) {
       for (const signal of detectPossibleLoops(run).signals) {
         expect(signal.evidence.length).toBeLessThanOrEqual(
-          LOOP_RULE_THRESHOLDS.maxEvidencePerRule + 1,
+          LOOP_RULE_THRESHOLDS.maxEvidencePerSignal + 1,
         );
       }
     }
+  });
+
+  it("caps signals per rule and eventIds per signal while preserving totals", () => {
+    // 100 distinct files x 3 identical read_file calls = 300 calls:
+    // 100 repeated-identical-call groups + 100 repeated-file groups.
+    const mkEvent = (
+      id: number,
+      type: AgentEventType,
+      data: JsonValue,
+      parentId?: string,
+    ): AgentEvent => ({
+      id: `e${id}`,
+      runId: "r-big",
+      timestamp: new Date(1_700_000_000_000 + id * 1000).toISOString(),
+      type,
+      ...(parentId !== undefined ? { parentId } : {}),
+      data,
+    });
+    const events: AgentEvent[] = [];
+    let next = 1;
+    events.push(mkEvent(next++, "run.started", null));
+    for (let f = 1; f <= 100; f++) {
+      for (let c = 0; c < 3; c++) {
+        const startId = next;
+        events.push(
+          mkEvent(next++, "tool.started", {
+            tool: "read_file",
+            input: { path: `src/f${f}.ts` },
+          }),
+        );
+        events.push(
+          mkEvent(
+            next++,
+            "tool.completed",
+            {
+              tool: "read_file",
+              output: { bytes: 100 },
+              durationMs: 10,
+              success: true,
+            },
+            `e${startId}`,
+          ),
+        );
+      }
+    }
+    events.push(mkEvent(next++, "run.completed", { summary: "done" }));
+    const run: Run = {
+      id: "r-big",
+      startedAt: new Date(1_700_000_000_000).toISOString(),
+      endedAt: new Date(1_700_000_000_000 + next * 1000).toISOString(),
+      status: "passed",
+      events,
+      metrics: { toolCalls: 300, failedToolCalls: 0 },
+    };
+    const report = detectPossibleLoops(run);
+    // Totals are preserved even though output is capped.
+    expect(report.totalSignalCount).toBe(200);
+    expect(report.signals.length).toBe(
+      2 * LOOP_RULE_THRESHOLDS.maxSignalsPerRule,
+    );
+    for (const rule of ["repeated-identical-call", "repeated-file"]) {
+      const kept = report.signals.filter((s) => s.rule === rule).length;
+      expect(kept).toBe(LOOP_RULE_THRESHOLDS.maxSignalsPerRule);
+      expect(report.notes.join(" ")).toContain(
+        `${rule} matched 100 times; showing the first ${LOOP_RULE_THRESHOLDS.maxSignalsPerRule}`,
+      );
+    }
+    for (const signal of report.signals) {
+      expect(signal.eventIds.length).toBeLessThanOrEqual(
+        LOOP_RULE_THRESHOLDS.maxEventIdsPerSignal,
+      );
+      expect(signal.evidence.length).toBeLessThanOrEqual(
+        LOOP_RULE_THRESHOLDS.maxEvidencePerSignal + 1,
+      );
+    }
+    // Still only "possible" signals — nothing asserts a confirmed loop.
+    for (const signal of report.signals) {
+      expect(signal.caveat.length).toBeGreaterThan(0);
+    }
+    // Deterministic across repeated runs.
+    expect(detectPossibleLoops(run)).toEqual(report);
+  });
+
+  it("truncates eventIds when a single signal spans many calls", () => {
+    // One identical call repeated 25 times (> maxEventIdsPerSignal).
+    const events = [];
+    let next = 1;
+    events.push({
+      id: "e1",
+      runId: "r-many",
+      timestamp: new Date(1_700_000_000_000).toISOString(),
+      type: "run.started" as const,
+      data: null,
+    });
+    for (let c = 0; c < 25; c++) {
+      const startId = `e${next}`;
+      events.push({
+        id: `e${next++}`,
+        runId: "r-many",
+        timestamp: new Date(1_700_000_000_000 + next * 1000).toISOString(),
+        type: "tool.started" as const,
+        data: { tool: "ping", input: { host: "h" } },
+      });
+      events.push({
+        id: `e${next++}`,
+        runId: "r-many",
+        timestamp: new Date(1_700_000_000_000 + next * 1000).toISOString(),
+        type: "tool.completed" as const,
+        parentId: startId,
+        data: {
+          tool: "ping",
+          output: { ok: true },
+          durationMs: 5,
+          success: true,
+        },
+      });
+    }
+    events.push({
+      id: `e${next}`,
+      runId: "r-many",
+      timestamp: new Date(1_700_000_000_000 + next * 1000).toISOString(),
+      type: "run.completed" as const,
+      data: null,
+    });
+    const run: Run = {
+      id: "r-many",
+      startedAt: new Date(1_700_000_000_000).toISOString(),
+      endedAt: new Date(1_700_000_000_000 + next * 1000).toISOString(),
+      status: "passed",
+      events: events as AgentEvent[],
+      metrics: { toolCalls: 25, failedToolCalls: 0 },
+    };
+    const signal = detectPossibleLoops(run).signals.find(
+      (s) => s.rule === "repeated-identical-call",
+    );
+    expect(signal).toBeDefined();
+    expect(signal?.eventIds.length).toBe(
+      LOOP_RULE_THRESHOLDS.maxEventIdsPerSignal,
+    );
+    expect(signal?.evidence.join(" ")).toContain("eventIds truncated");
+    expect(signal?.evidence.join(" ")).toContain("of 25");
+    expect(signal?.description).toContain("25 times");
   });
 
   it("reports progress as indeterminate when no progress events exist", () => {

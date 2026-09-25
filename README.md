@@ -108,6 +108,7 @@ agentlens diff <runA> <runB> [--db ./.agentlens/agentlens.db]
 - 所有信号都是 “possible loop”，不是已确认的语义循环。相同重试可能是合法的轮询或退避；编辑后重试、同一文件被多种工具触碰视为可能的进展。
 - 载荷无法证明进展：当 run 未记录 artifact/plan/verification 事件时，报告附注说明进展**无法证实也无法证伪**。
 - 只比较 recorded 的 input/output/error；不比较耗时、timestamp、message 文本，也不比较工具无法观测的外部状态。
-- 结果是确定的：同一事件序列总是产生同一报告；每条信号的 evidence 行数有上限（默认 8），较大运行不会无界输出。
+- 结果是确定的：同一事件序列总是产生同一报告。
+- 输出有界，较大运行不会失控：`maxSignalsPerRule`（每条规则最多列 10 条信号，按事件顺序取最早者）、`maxEvidencePerSignal`（每条信号最多 8 行 evidence）、`maxEventIdsPerSignal`（每条信号最多列 20 个事件 ID）。被截断的部分不会丢失：报告 `totalSignalCount` 始终保存全部命中数，notes 逐条说明每条规则命中多少次、展示前多少条；事件 ID 被截断时 evidence 的范围行（`events e1–e9 (N calls)`）仍覆盖全部出现次数。
 
 当前已实现命令为 `import`、`runs`、`inspect`、`diff`；`show`、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。

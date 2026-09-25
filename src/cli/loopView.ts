@@ -7,10 +7,17 @@ import type { LoopReport } from "../core/loops.js";
  */
 export function formatLoopSection(report: LoopReport): string[] {
   const out: string[] = ["", "Possible loops"];
-  if (report.signals.length === 0) {
+  if (report.totalSignalCount === 0) {
     out.push("  No loop signals detected.");
   } else {
-    out.push(`  ${report.signals.length} signal(s):`);
+    const truncated = report.signals.length < report.totalSignalCount;
+    out.push(
+      `  ${report.totalSignalCount} signal(s)` +
+        (truncated
+          ? ` — showing ${report.signals.length}, rest summarized in notes below`
+          : "") +
+        ":",
+    );
     report.signals.forEach((signal, i) => {
       out.push(`  ${i + 1}. [${signal.rule}] ${signal.description}`);
       for (const line of signal.evidence) {
