@@ -2,7 +2,7 @@
 
 面向 AI Agent 开发者的本地执行分析工具，先实现记录、查看和对比两次运行。核心是稳定的 Event Schema 与可解释的行为差异。
 
-项目范围、CLI、技术栈与 M0–M7 里程碑见 [PROJECT.md](PROJECT.md)。当前已验收 M0–M3，代码开发由 Devin Cloud 按里程碑交付。
+项目范围、CLI、技术栈与 M0–M7 里程碑见 [PROJECT.md](PROJECT.md)。当前已验收 M0–M5，代码开发由 Devin Cloud 按里程碑交付。
 
 ## 开发与验收
 
@@ -112,3 +112,48 @@ agentlens diff <runA> <runB> [--db ./.agentlens/agentlens.db]
 - 输出有界，较大运行不会失控：`maxSignalsPerRule`（每条规则最多列 10 条信号，按事件顺序取最早者）、`maxEvidencePerSignal`（每条信号最多 8 行 evidence）、`maxEventIdsPerSignal`（每条信号最多列 20 个事件 ID）。被截断的部分不会丢失：报告 `totalSignalCount` 始终保存全部命中数，notes 逐条说明每条规则命中多少次、展示前多少条；事件 ID 被截断时 evidence 的范围行（`events e1–e9 (N calls)`）仍覆盖全部出现次数。
 
 当前已实现命令为 `import`、`runs`、`inspect`、`diff`；`show`、Provider 适配、Replay、UI 与云服务在后续里程碑实现，尚未提供。
+
+## M6：外部格式 Adapter（Generic JSONL 与 Pi）
+
+`agentlens import` 通过 `--format` 显式指定输入格式，不做内容猜测：
+
+```bash
+agentlens import trace.jsonl                          # agentlens-trace v1（默认，M2 兼容）
+agentlens import events.jsonl --format generic        # agentlens-generic v1
+agentlens import pi-session.jsonl --format pi         # Pi coding-agent 会话 JSONL
+```
+
+三种格式都只产出已验证的 Run，由存储层原子写入；非法输入、无效工具关联、重复 Run id、未来格式版本都使整个导入失败，不留下半条 Run。Adapter 只负责 `外部事件 → AgentEvent/Run`，core 不出现任何 Pi 专有事件类型。
+
+### agentlens-generic v1
+
+与 `agentlens-trace` 同为「一行 run 元信息 + 逐行事件」的包络，但事件形状面向外部 Agent 简化：
+
+```jsonl
+{"format":"agentlens-generic","formatVersion":1,"kind":"run","run":{"id":"r1","agent":"a","model":"m","startedAt":"...","status":"passed","metrics":{...}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e1","type":"message.input","timestamp":"...","parentId":"...","data":{...}}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e2","type":"tool.started","timestamp":"...","tool":"ls","input":{...},"toolCallId":"c1"}}
+{"format":"agentlens-generic","formatVersion":1,"kind":"event","event":{"id":"e3","type":"tool.completed","timestamp":"...","toolCallId":"c1","output":{...},"durationMs":12}}
+```
+
+- `run` 只有 `id` 必填；`startedAt` 缺省取首个事件时间戳，终态 Run 的 `endedAt` 缺省取末事件时间戳，`status` 缺省按末事件推导（`run.completed`→passed、`run.failed`→failed、否则 running）。`metrics` 可显式携带 token 等数值；缺省时只计算 `toolCalls`/`failedToolCalls`，不猜任何缺失指标。
+- 事件 `type` 即 AgentEventType；非 tool 事件的 `data` 原样保留。tool 事件用 `tool`/`input`/`output`/`error`/`durationMs` 字段而非 `data`；`tool.completed`/`tool.failed` 用 `toolCallId` 关联更早的 `tool.started`（缺省即其事件 id），或直接给 `parentId`；`tool`/`input` 缺省从关联的 started 继承。
+- 未知 `type`、未知字段、无效 `toolCallId`、先于 run 行的事件、重复 run 行都带行号明确报错。
+
+### pi（Pi session）
+
+Pi 指开源 coding agent `pi`（`@earendil-works/pi-coding-agent`，仓库 `github.com/badlogic/pi-mono`，MIT）。其会话文件为 JSONL：首行 `{"type":"session","version":N,...}` 头部，其后为 `message`/`model_change`/`usage`/`compaction`/`thinking_level_change` 等条目；v1 会话无 `version` 字段，当前 `CURRENT_SESSION_VERSION` 为 3（`packages/coding-agent/src/core/session-manager.ts`）。Adapter 支持 version ≤3，更高版本明确拒绝。
+
+样本与依据：`fixtures/pi/*.jsonl` 由公开 fixture `packages/coding-agent/test/fixtures/before-compaction.jsonl`（pi-mono commit `5fd446ca1843682e8da3fec4ceb71c42f56fbace`）的真实行原样节选组成，仅将错误样本的 session id 末位改为 `...f90fe` 以便与成功样本共存；不含任何私有会话、密钥或 Cookie。
+
+映射（只产出既有 AgentEventType）：
+
+- session 头 → run 元信息 + 合成的 `run.started`（`data.source` 保留原始头部与格式版本）。
+- `message`：`user`/`custom` → `message.input`；`assistant` 的 text→`message.output`、thinking→`reasoning.summary`、toolCall→`tool.started`（事件 id 为 `pi-tool-<toolCallId>`）；`stopReason` 为 `error`/`aborted` 或含 `errorMessage` 时额外发 `error` 事件；`toolResult` 按 `isError` → `tool.completed`/`tool.failed` 并 parentId 到对应 `tool.started`，`input` 继承调用参数、`output` 保留原始 `content`/`details`/`usage` 块、`durationMs` 由消息毫秒时间戳差得到；`bashExecution` → `tool.started`+结果对（tool 名为 `bash`）。
+- `compaction`/`branch_summary` 与 `custom_message` → `reasoning.summary`/`message.input`（注入上下文的文本），原文与字段保存在 `data.source`。
+- `model_change` 更新 run.model；assistant `usage` 累计为 metrics 的 input/output/reasoningTokens（未上报则不出现）；时长由首末时间戳差计算。
+- 无法映射的条目（`usage` 记录、`thinking_level_change`、`label`、`session_info`、`context_edit`、`custom`、仅含 toolCall 的 assistant 元信息、未知类型）不生成事件，原始行按序保留在终态事件 `data.source.unmappedEntries`（含原始行号与时间戳），不静默丢弃。
+- Run 状态：末条 assistant 的 `stopReason` 为 `error`→failed、`aborted`→cancelled、否则 passed，并追加合成的 `run.completed`/`run.failed` 终态事件。
+
+已知边界：`usage`/`cost` 条目与 assistant 级 provider 元数据只保留在 `source`/`unmappedEntries` 原始载荷中（metrics 无对应字段，cacheRead/cacheWrite/cost 不进入指标）；`filesRead`/`filesWritten` 不从工具名推断；tool 事件的 `data` 受既有严格 schema 约束，不能内嵌 `source`（逐事件溯源见事件 id 规则 `pi-<entryId>`/`pi-tool-<toolCallId>`）；Pi 会话树的分支结构（parentId 树）按主链线性化为事件链。
+

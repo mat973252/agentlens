@@ -1,26 +1,45 @@
 import { readFileSync } from "node:fs";
 import type { Command } from "commander";
-import { parseRunTraceJsonl } from "../schema/traceJsonl.js";
+import {
+  IMPORT_FORMAT_NAMES,
+  importRun,
+  isImportFormat,
+} from "../adapters/index.js";
 import { defaultDbPath, SqliteTraceStore } from "../storage/sqlite/store.js";
 
 /**
- * `agentlens import <file>`: validate an AgentLens trace JSONL file and write
- * it into the local SQLite store. Everything is processed locally; file
- * contents never leave the machine. The write is atomic — an invalid file or
- * a duplicate run id leaves the database untouched.
+ * `agentlens import <file>`: validate an input trace file and write it into
+ * the local SQLite store. The input format is named explicitly with
+ * `--format` — `agentlens-trace` (the M2 envelope, default), `generic`
+ * (agentlens-generic line-per-event input) or `pi` (a Pi coding-agent
+ * session JSONL file). Everything is processed locally; file contents never
+ * leave the machine. The write is atomic — an invalid file or a duplicate
+ * run id leaves the database untouched.
  */
 export function registerImportCommand(program: Command): void {
   program
     .command("import")
     .description(
-      "Import a run trace in the agentlens-trace JSONL format into local storage",
+      "Import a run trace into local storage (formats: " +
+        IMPORT_FORMAT_NAMES.join(", ") +
+        ")",
     )
-    .argument("<file>", "path to a trace.jsonl file")
+    .argument("<file>", "path to the input file")
     .option("--db <path>", "SQLite database path", defaultDbPath())
-    .action((file: string, options: { db: string }) => {
+    .option(
+      "--format <name>",
+      `input format: ${IMPORT_FORMAT_NAMES.join("|")}`,
+      "agentlens-trace",
+    )
+    .action((file: string, options: { db: string; format: string }) => {
       try {
+        if (!isImportFormat(options.format)) {
+          throw new Error(
+            `Unknown import format "${options.format}"; expected one of: ${IMPORT_FORMAT_NAMES.join(", ")}`,
+          );
+        }
         const text = readFileSync(file, "utf8");
-        const { run } = parseRunTraceJsonl(text);
+        const run = importRun(text, options.format);
         const store = SqliteTraceStore.open(options.db);
         try {
           store.saveRun(run);

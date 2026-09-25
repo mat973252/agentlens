@@ -5,6 +5,23 @@
  */
 
 export {
+  GENERIC_JSONL_FORMAT,
+  GENERIC_JSONL_FORMAT_VERSION,
+  parseGenericJsonl,
+} from "./adapters/generic.js";
+export {
+  IMPORT_FORMAT_NAMES,
+  IMPORT_FORMATS,
+  type ImportFormat,
+  importRun,
+  isImportFormat,
+} from "./adapters/index.js";
+export {
+  PI_SESSION_FORMAT,
+  PI_SESSION_FORMAT_VERSION,
+  parsePiSession,
+} from "./adapters/pi.js";
+export {
   AgentLensStorageError,
   AgentLensValidationError,
   UnsupportedSchemaVersionError,
