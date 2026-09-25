@@ -4,7 +4,7 @@
 
 | 阶段 | 交付结果 | 独立验收 | 状态 |
 | --- | --- | --- | --- |
-| M0 | 可安装 CLI、构建、测试、CI | 全新安装；`agentlens --help`；构建与测试 | 本机验收通过，待 main CI |
+| M0 | 可安装 CLI、构建、测试、CI | 全新安装；`agentlens --help`；构建与测试 | 已验收 |
 | M1 | Event Schema、SQLite schema/migration、10+ fixtures | fixtures 写入、读取、序列化往返一致 | 未开始 |
 | M2 | SDK Recorder 与 JSONL 导入 | Demo Agent 从开始到完成的事件记录完整 | 未开始 |
 | M3 | `runs`、`inspect` | 无需打开数据库即可理解一次运行 | 未开始 |
@@ -21,5 +21,6 @@
 - 独立环境：Windows PowerShell、Git 系统配置 `core.autocrlf=true`、Node v24.19.0、pnpm 10.17.1；从修复后远端分支建立全新检出 `D:\code\aiproject\_review\agentlens-m0-fix`。未更改用户 Git 全局配置。
 - 实际命令与结果：`corepack pnpm install --frozen-lockfile` 通过；`corepack pnpm lint`（Biome 与 `tsc --noEmit`）通过；`corepack pnpm test` 3/3 通过；`corepack pnpm build` 通过；`node dist/cli.js --help` 显示项目名称和入口，`--version` 为 0.0.1。全新检出 `git status --short` 为空。
 - 范围与许可：仅有 M0 骨架、CLI 空入口、示例测试与 Node 22/24 Ubuntu CI；Event Schema、SQLite、Recorder、Diff、Replay 均未实现。`package.json` 的 `Apache-2.0` 与现有 LICENSE 一致。未发现跟踪的 env 或凭据路径。
-- 已知边界：Windows Node 22、Ubuntu Node 22/24 的托管 CI 尚待确认；首次提交的 Windows lint 问题已由 `.gitattributes` 在新检出中复验解决。当前仅能把本机 M0 验收标为通过，不能据此宣称 M1 功能可用。
-- 下一步：推送 `main` 后确认 Ubuntu CI；通过后按 `docs/devin-m1.md` 单独派发 M1。
+- Ubuntu CI：`main` 提交 `fb15c49` 的 [运行 36095835132](https://github.com/mat973252/agentlens/actions/runs/36095835132) 已通过 Node 22/24 两项作业，每项包含冻结安装、lint、测试、构建与 CLI 帮助冒烟。
+- 已知边界：Windows Node 22 尚未单独测试；首次提交的 Windows lint 问题已由 `.gitattributes` 在新检出中复验解决。M0 不包含 M1 功能。
+- 下一步：按 `docs/devin-m1.md` 单独派发 M1。
