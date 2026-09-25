@@ -1,6 +1,6 @@
 # 里程碑交付记录
 
-状态日期：2026-09-25。M0–M4 已独立验收并集成；M5–M7 尚未验收。
+状态日期：2026-09-25。M0–M5 已独立验收并集成；M6–M7 尚未验收。
 
 | 阶段 | 交付结果 | 独立验收 | 状态 |
 | --- | --- | --- | --- |
@@ -9,7 +9,7 @@
 | M2 | SDK Recorder 与 JSONL 导入 | Demo Agent 从开始到完成的事件记录完整 | 已验收 |
 | M3 | `runs`、`inspect` | 无需打开数据库即可理解一次运行 | 已验收 |
 | M4 | `diff A B` | 对照成功与失败运行，快速发现主要差异 | 已验收 |
-| M5 | 规则式循环检测 | 重复工具、文件、错误和 ping-pong 案例可复现 | 未开始 |
+| M5 | 规则式循环检测 | 重复工具、文件、错误和 ping-pong 案例可复现 | 已验收 |
 | M6 | Pi、Generic JSONL，后续 Codex 适配 | 外部事件归一化后信息正确 | 未开始 |
 | M7 | Relay 真实试用 | 记录对照案例与集成成本 | 未开始 |
 
@@ -64,3 +64,13 @@
 - Ubuntu CI：PR [运行 36102207227](https://github.com/mat973252/agentlens/actions/runs/36102207227) 与合入后 `main` 的 [运行 36102389561](https://github.com/mat973252/agentlens/actions/runs/36102389561) 均通过 Node 22/24 作业。
 - 已知边界：时间线以事件类型和工具名做最长公共子序列匹配，并非语义比较；大运行记录的对齐成本和输出长度尚未单独压测。错误按来源类型、工具和相同文本聚合，不代表根因相同。尚无 M5 循环检测、Provider 适配或 Replay。
 - 下一步：按 `docs/devin-m5.md` 单独派发规则式循环检测。
+
+## M5 验收记录（2026-09-25）
+
+- 源码：Devin Cloud 会话 `5a1c7f2afab34f67b2b58781c863386a`、PR [#4](https://github.com/mat973252/agentlens/pull/4)，最终提交 `1f2589daf1194e958decd15b9fea966f409561a6`；远端分支及 PR head SHA 已核对，`main` 快进至同一提交，PR 显示 merged。
+- 返工：首版 `dd06b42` 在 100 个不同文件各读取 3 次的独立样本中产生 200 条信号，诊断总数无上限，不符合大运行输出有限的任务书。Devin 在同分支补交 `1f2589d`：每规则最多显示 10 条信号，每信号最多 20 个事件 ID 和 8 行证据，保留全部命中总数与截断说明，并补回归和 README。
+- 独立环境与命令：Windows PowerShell、Git `core.autocrlf=true`、Node v24.19.0、pnpm 10.17.1；最终提交的全新检出 `D:\code\aiproject\_review\agentlens-m5-1f2589d` 中，`corepack pnpm install --frozen-lockfile`、lint、141/141 tests、build 均通过。
+- CLI 端到端：三份循环 fixture（文件往返读取、重复 grep、无可观测进展）均命中并列出规则、事件证据与置信边界；六份正常或恢复 fixture 无命中。独立构造 300 次调用、100 个文件的样本返回总命中 200、展示 20 条，`inspect` 的 Possible loops 区域约 7,899 字符，并说明截断。九份样本重复 `inspect` 输出一致；数据库 SHA-256/mtime 不变、无 WAL/journal。缺失/损坏/未来版本数据库和未知 Run 错误路径以非零状态退出。
+- Ubuntu CI：最终 PR 提交的 [运行 36104121468](https://github.com/mat973252/agentlens/actions/runs/36104121468) 与合入后 `main` 的 [运行 36104390700](https://github.com/mat973252/agentlens/actions/runs/36104390700) 均通过 Node 22/24 两项作业。
+- 已知边界：所有信号仅表示 possible loop；合法轮询/退避、编辑与测试交替可能被标记。规则只看记录中的工具输入/结果/错误和少数进展事件，不能证明外部状态或语义进展。诊断区有数量限制，`inspect` 的完整原始时间线不在本次大输出限制范围内。Node 22.13 最低补丁版未在本机单独测试。
+- 下一步：按 `docs/devin-m6.md` 单独派发 Pi 与 Generic JSONL Adapter，Codex Adapter 留待后续。
