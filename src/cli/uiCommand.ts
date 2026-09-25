@@ -32,6 +32,20 @@ const parseColorOption = (value: string): ColorOption => {
   );
 };
 
+/**
+ * The color mode a `ui` run uses: `NO_COLOR` wins over `--color`, an
+ * explicit mode wins over environment detection, and `auto` asks
+ * `detectColorMode`.
+ */
+export function resolveColorMode(
+  requested: string,
+  env: NodeJS.ProcessEnv = process.env,
+): ColorMode {
+  if (env.NO_COLOR !== undefined) return "none";
+  if (requested === "auto") return detectColorMode(env);
+  return requested as ColorMode;
+}
+
 export function registerUiCommand(program: Command): void {
   program
     .command("ui")
@@ -56,8 +70,7 @@ export function registerUiCommand(program: Command): void {
               "Use `agentlens runs`, `agentlens inspect <run>` or `agentlens diff <a> <b>` for non-interactive output.",
           );
         }
-        const colorMode: ColorMode =
-          requested === "auto" ? detectColorMode() : requested;
+        const colorMode = resolveColorMode(requested);
         const code = await runTui(
           data,
           { input: process.stdin, output: process.stdout },

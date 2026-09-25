@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { formatRunDiff } from "../src/cli/diffView.js";
 import { createProgram } from "../src/cli/program.js";
 import { formatRunInspect } from "../src/cli/runView.js";
-import { loadTuiData } from "../src/cli/uiCommand.js";
+import { loadTuiData, resolveColorMode } from "../src/cli/uiCommand.js";
 import { deserializeRunTrace } from "../src/schema/trace.js";
 import { SqliteTraceStore } from "../src/storage/sqlite/store.js";
 import { runTui } from "../src/tui/app.js";
@@ -126,6 +126,23 @@ describe("color detection", () => {
       "none",
     );
     expect(detectColorMode({ TERM: "dumb" })).toBe("none");
+  });
+
+  it("NO_COLOR wins over an explicit --color mode", () => {
+    expect(
+      resolveColorMode("ansi16", { NO_COLOR: "1", COLORTERM: "truecolor" }),
+    ).toBe("none");
+    expect(resolveColorMode("truecolor", { NO_COLOR: "1" })).toBe("none");
+    expect(resolveColorMode("auto", { NO_COLOR: "1" })).toBe("none");
+  });
+
+  it("explicit --color wins over environment detection", () => {
+    expect(resolveColorMode("ansi16", { COLORTERM: "truecolor" })).toBe(
+      "ansi16",
+    );
+    expect(resolveColorMode("auto", { COLORTERM: "truecolor" })).toBe(
+      "truecolor",
+    );
   });
 
   it("upgrades for truecolor hints and degrades to 256/16", () => {
