@@ -2,7 +2,18 @@
 
 面向 AI Agent 开发者的本地执行分析工具，先实现记录、查看和对比两次运行。核心是稳定的 Event Schema 与可解释的行为差异。
 
-项目范围、CLI、技术栈与 M0–M7 里程碑见 [PROJECT.md](PROJECT.md)。当前已验收 M0–M5，代码开发由 Devin Cloud 按里程碑交付。
+项目范围、CLI、技术栈与 M0–M7 里程碑见 [PROJECT.md](PROJECT.md)。阶段验收和 M8 离线证据适配的最新状态见 [DELIVERY.md](DELIVERY.md)。
+
+## 先定位，再展开证据
+
+```bash
+agentlens inspect <run-id> --summary --db ./.agentlens/agentlens.db
+agentlens inspect <run-id> --db ./.agentlens/agentlens.db
+```
+
+`--summary` 给出记录状态、未记录结束事件的工具数、最多五条错误/失败信号及事件 ID；终止失败优先展示。它是定位入口，不推断根因：恢复过的错误仍是历史信号，不会把 passed 改成 failed。附加的 Relay UNKNOWN 等状态独立显示，不受运行成功影响。完整载荷仍在普通 inspect / `--json` 中；`--summary` 与 `--json` 不能组合。查询不创建或迁移数据库。
+
+调研依据、取舍与验收见 [本轮社区调研记录](docs/community-research-2026-09-26.md)。
 
 ## 开发与验收
 

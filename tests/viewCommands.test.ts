@@ -87,6 +87,44 @@ const expectCliError = async (
   expect(errors.join("")).toContain(contains);
 };
 
+describe("agentlens inspect --summary", () => {
+  it("shows bounded evidence with event IDs and leaves the database unchanged", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, ["run-failed-fatal-tool.json"]);
+    const before = {
+      hash: digest(db),
+      time: statSync(db).mtimeMs,
+      files: readdirSync(dir),
+    };
+    const args = ["inspect", "run-failed-fatal-tool", "--summary", "--db", db];
+    const text = await runCli(args);
+    expect(text).toContain("Recorded status: failed");
+    expect(text).toContain('event="e3" parent="e2"');
+    expect(text).toContain('event="e5"');
+    expect(text).not.toContain("Timeline");
+    expect(await runCli(args)).toBe(text);
+    expect({
+      hash: digest(db),
+      time: statSync(db).mtimeMs,
+      files: readdirSync(dir),
+    }).toEqual(before);
+  });
+
+  it("rejects JSON combination before opening a database", async () => {
+    await expectCliError(
+      [
+        "inspect",
+        "missing",
+        "--summary",
+        "--json",
+        "--db",
+        join(tmpDir(), "missing.db"),
+      ],
+      "--summary cannot be combined with --json",
+    );
+  });
+});
+
 describe("agentlens runs", () => {
   it("lists runs in stable order with status, model and tool metrics", async () => {
     const dir = tmpDir();
