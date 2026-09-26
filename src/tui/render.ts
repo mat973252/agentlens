@@ -147,7 +147,11 @@ export function currentDetailItems(state: TuiState, data: TuiData): Item[] {
   if (d === null) return [];
   const run = data.runs[d.runIndex];
   if (run === undefined) return [];
-  return detailItems(run, DETAIL_TABS[d.tab] ?? "timeline");
+  return detailItems(
+    run,
+    DETAIL_TABS[d.tab] ?? "timeline",
+    data.evidence.get(run.id),
+  );
 }
 
 export function currentDiffLines(
@@ -157,7 +161,7 @@ export function currentDiffLines(
   const a = state.a !== null ? data.runs[state.a] : undefined;
   const b = state.b !== null ? data.runs[state.b] : undefined;
   if (a === undefined || b === undefined) return [];
-  return diffText(a, b).lines;
+  return diffText(a, b, data.evidence.get(a.id), data.evidence.get(b.id)).lines;
 }
 
 export function currentPagerLines(state: TuiState, geom: Geom): string[] {
@@ -438,6 +442,7 @@ const TAB_LABELS: Record<string, string> = {
   tools: "tools",
   errors: "errors",
   loops: "loops",
+  relay: "relay",
   inspect: "inspect",
 };
 

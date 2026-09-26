@@ -1,5 +1,6 @@
 import { detectPossibleLoops } from "../core/loops.js";
 import type { Run } from "../core/run.js";
+import type { StoredRelayEvidence } from "../storage/sqlite/store.js";
 import {
   durationOf,
   errorMessage,
@@ -11,6 +12,7 @@ import {
   toolOutcomes,
 } from "./eventDetails.js";
 import { formatLoopSection } from "./loopView.js";
+import { formatRelayEvidenceSection } from "./relayView.js";
 
 /** Pure text renderers for `agentlens runs` and `agentlens inspect`. */
 
@@ -44,9 +46,14 @@ export function formatRunsTable(runs: Run[]): string {
 
 /**
  * `agentlens inspect <run-id>`: metadata, tools, errors, metrics, timeline,
- * rules-based possible-loop diagnostics, result.
+ * rules-based possible-loop diagnostics, result. When Relay effect evidence
+ * was attached at import it is rendered as its own observed-evidence
+ * section between the loop diagnostics and the result.
  */
-export function formatRunInspect(run: Run): string {
+export function formatRunInspect(
+  run: Run,
+  evidence?: StoredRelayEvidence,
+): string {
   const out: string[] = [`Run ${run.id}`, "", "Metadata"];
   out.push(`  Status    ${run.status}`);
   out.push(`  Agent     ${field(run.agent)}`);
@@ -121,6 +128,11 @@ export function formatRunInspect(run: Run): string {
   }
 
   out.push(...formatLoopSection(detectPossibleLoops(run)));
+
+  const evidenceSection = formatRelayEvidenceSection(run, evidence);
+  if (evidenceSection !== undefined) {
+    out.push("", ...evidenceSection);
+  }
 
   out.push("", "Result");
   const terminal = run.events.at(-1);

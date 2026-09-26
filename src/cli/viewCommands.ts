@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import { AgentLensValidationError } from "../core/errors.js";
 import { defaultDbPath, SqliteTraceStore } from "../storage/sqlite/store.js";
 import { formatRunDiff } from "./diffView.js";
+import { relayEvidenceJson } from "./relayView.js";
 import { formatRunInspect, formatRunsTable } from "./runView.js";
 
 const reportError = (error: unknown): void => {
@@ -47,11 +48,31 @@ export function registerViewCommands(program: Command): void {
     )
     .argument("<run-id>", "id of the run to inspect")
     .option("--db <path>", "SQLite database path", defaultDbPath())
-    .action((runId: string, options: { db: string }) => {
+    .option("--json", "emit machine-readable JSON instead of text")
+    .action((runId: string, options: { db: string; json?: boolean }) => {
       try {
         const store = SqliteTraceStore.openReadOnly(options.db);
         try {
-          process.stdout.write(formatRunInspect(store.getRun(runId)));
+          const run = store.getRun(runId);
+          const evidence = store.getRelayEvidence(runId);
+          if (options.json === true) {
+            process.stdout.write(
+              `${JSON.stringify(
+                {
+                  schema: "agentlens.inspect/1",
+                  run,
+                  relayEvidence:
+                    evidence === undefined
+                      ? null
+                      : relayEvidenceJson(run, evidence),
+                },
+                null,
+                2,
+              )}\n`,
+            );
+          } else {
+            process.stdout.write(formatRunInspect(run, evidence));
+          }
         } finally {
           store.close();
         }
@@ -68,23 +89,52 @@ export function registerViewCommands(program: Command): void {
     .argument("<runA>", "id of the first (baseline) run")
     .argument("<runB>", "id of the second (comparison) run")
     .option("--db <path>", "SQLite database path", defaultDbPath())
-    .action((runA: string, runB: string, options: { db: string }) => {
-      try {
-        if (runA === runB) {
-          throw new AgentLensValidationError(
-            `Cannot diff run ${runA} with itself; provide two different run ids`,
-          );
-        }
-        const store = SqliteTraceStore.openReadOnly(options.db);
+    .option("--json", "emit machine-readable JSON instead of text")
+    .action(
+      (runA: string, runB: string, options: { db: string; json?: boolean }) => {
         try {
-          process.stdout.write(
-            formatRunDiff(store.getRun(runA), store.getRun(runB)),
-          );
-        } finally {
-          store.close();
+          if (runA === runB) {
+            throw new AgentLensValidationError(
+              `Cannot diff run ${runA} with itself; provide two different run ids`,
+            );
+          }
+          const store = SqliteTraceStore.openReadOnly(options.db);
+          try {
+            const a = store.getRun(runA);
+            const b = store.getRun(runB);
+            const aEvidence = store.getRelayEvidence(runA);
+            const bEvidence = store.getRelayEvidence(runB);
+            if (options.json === true) {
+              process.stdout.write(
+                `${JSON.stringify(
+                  {
+                    schema: "agentlens.diff/1",
+                    a: { id: a.id, status: a.status },
+                    b: { id: b.id, status: b.status },
+                    relayEvidence: {
+                      a:
+                        aEvidence === undefined
+                          ? null
+                          : relayEvidenceJson(a, aEvidence),
+                      b:
+                        bEvidence === undefined
+                          ? null
+                          : relayEvidenceJson(b, bEvidence),
+                    },
+                  },
+                  null,
+                  2,
+                )}\n`,
+              );
+            } else {
+              process.stdout.write(formatRunDiff(a, b, aEvidence, bEvidence));
+            }
+          } finally {
+            store.close();
+          }
+        } catch (error) {
+          reportError(error);
         }
-      } catch (error) {
-        reportError(error);
-      }
-    });
+      },
+    );
 }

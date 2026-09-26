@@ -12,6 +12,11 @@ import {
   UnsupportedSchemaVersionError,
 } from "../../core/errors.js";
 import type { JsonValue } from "../../core/json.js";
+import {
+  type RelayEffectHistory,
+  type RelayHistoryExport,
+  validateRelayHistoryDoc,
+} from "../../core/relayEvidence.js";
 import { parseRun, type Run } from "../../core/run.js";
 import { applyMigrations, MIGRATIONS } from "./migrations.js";
 
@@ -32,6 +37,68 @@ interface EventRow {
   parent_id: string | null;
   data_json: string;
 }
+
+interface RelayImportRow {
+  run_id: string;
+  schema: string;
+  session_sha256: string;
+  history_sha256: string;
+  imported_at: string;
+  effect_count: number;
+  event_count: number;
+}
+
+interface RelayEffectRow {
+  position: number;
+  effect_id: string;
+  effect_key: string;
+  kind: string;
+  status: string;
+  coverage: string;
+  created_at: number;
+  submitted_at: number | null;
+  settled_at: number | null;
+  updated_at: number;
+}
+
+interface RelayEffectEventRow {
+  effect_id: string;
+  seq: number;
+  from_status: string | null;
+  to_status: string;
+  cause: string;
+  at: number;
+}
+
+/**
+ * Offline Relay effect evidence attached to one run at import time.
+ * `exportDoc` is the validated `relay.effect-history/1` document; the
+ * hashes are SHA-256 of the exact session/history file contents read.
+ */
+export interface RelayEvidenceAttachment {
+  exportDoc: RelayHistoryExport;
+  sessionSha256: string;
+  historySha256: string;
+  importedAt: string;
+}
+
+/** Persisted Relay evidence as read back from the evidence tables. */
+export interface StoredRelayEvidence {
+  runId: string;
+  schema: string;
+  sessionSha256: string;
+  historySha256: string;
+  importedAt: string;
+  histories: RelayEffectHistory[];
+}
+
+const EXPECTED_TABLES = [
+  "runs",
+  "events",
+  "relay_evidence_imports",
+  "relay_effects",
+  "relay_effect_events",
+] as const;
 
 /**
  * Synchronous SQLite store for runs and their ordered events.
@@ -92,9 +159,9 @@ export class SqliteTraceStore {
         tables = (
           db
             .prepare(
-              "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('runs', 'events')",
+              `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${EXPECTED_TABLES.map(() => "?").join(", ")})`,
             )
-            .all() as { name: string }[]
+            .all(...EXPECTED_TABLES) as { name: string }[]
         ).map((r) => r.name);
       } catch (error) {
         throw new AgentLensStorageError(
@@ -107,7 +174,7 @@ export class SqliteTraceStore {
       if (version > target) {
         throw new UnsupportedSchemaVersionError(version, target, "database");
       }
-      if (version < target || tables.length !== 2) {
+      if (version < target || tables.length !== EXPECTED_TABLES.length) {
         throw new AgentLensStorageError(
           version === 0
             ? `Database ${path} is not an AgentLens store (schema version 0)`
@@ -121,14 +188,28 @@ export class SqliteTraceStore {
     return new SqliteTraceStore(db);
   }
 
-  /** Validates and persists a run plus its events atomically. */
-  saveRun(input: unknown): Run {
+  /**
+   * Validates and persists a run plus its events atomically. When
+   * `evidence` is given, its already-validated histories are written in the
+   * same transaction — a duplicate run, invalid sidecar or any insert
+   * failure rolls back run and evidence together; nothing is left partial.
+   */
+  saveRun(input: unknown, evidence?: RelayEvidenceAttachment): Run {
     const run = parseRun(input);
     const insertRun = this.db.prepare(
       "INSERT INTO runs (id, started_at, ended_at, agent, model, status, metrics_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
     const insertEvent = this.db.prepare(
       "INSERT INTO events (run_id, seq, id, timestamp, type, parent_id, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertImport = this.db.prepare(
+      "INSERT INTO relay_evidence_imports (run_id, schema, session_sha256, history_sha256, imported_at, effect_count, event_count) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertEffect = this.db.prepare(
+      "INSERT INTO relay_effects (run_id, position, effect_id, effect_key, kind, status, coverage, created_at, submitted_at, settled_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertEffectEvent = this.db.prepare(
+      "INSERT INTO relay_effect_events (run_id, effect_id, seq, from_status, to_status, cause, at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
     this.db.exec("BEGIN");
     try {
@@ -152,6 +233,45 @@ export class SqliteTraceStore {
           JSON.stringify(event.data),
         );
       });
+      if (evidence !== undefined) {
+        const histories = evidence.exportDoc.histories;
+        insertImport.run(
+          run.id,
+          evidence.exportDoc.schema,
+          evidence.sessionSha256,
+          evidence.historySha256,
+          evidence.importedAt,
+          histories.length,
+          histories.reduce((total, h) => total + h.events.length, 0),
+        );
+        histories.forEach((history, position) => {
+          const record = history.record;
+          insertEffect.run(
+            run.id,
+            position,
+            record.id,
+            record.key,
+            record.kind,
+            record.status,
+            history.coverage,
+            record.createdAt,
+            record.submittedAt ?? null,
+            record.settledAt ?? null,
+            record.updatedAt,
+          );
+          for (const transition of history.events) {
+            insertEffectEvent.run(
+              run.id,
+              transition.effectId,
+              transition.seq,
+              transition.fromStatus ?? null,
+              transition.toStatus,
+              transition.cause,
+              transition.at,
+            );
+          }
+        });
+      }
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -161,6 +281,115 @@ export class SqliteTraceStore {
       );
     }
     return run;
+  }
+
+  private evidenceRows(runId: string): {
+    import: RelayImportRow;
+    effects: RelayEffectRow[];
+    events: RelayEffectEventRow[];
+  } | null {
+    const importRow = this.db
+      .prepare(
+        "SELECT run_id, schema, session_sha256, history_sha256, imported_at, effect_count, event_count FROM relay_evidence_imports WHERE run_id = ?",
+      )
+      .get(runId) as RelayImportRow | undefined;
+    if (importRow === undefined) return null;
+    const effects = this.db
+      .prepare(
+        "SELECT position, effect_id, effect_key, kind, status, coverage, created_at, submitted_at, settled_at, updated_at FROM relay_effects WHERE run_id = ? ORDER BY position",
+      )
+      .all(runId) as unknown as RelayEffectRow[];
+    const events = this.db
+      .prepare(
+        "SELECT effect_id, seq, from_status, to_status, cause, at FROM relay_effect_events WHERE run_id = ? ORDER BY seq",
+      )
+      .all(runId) as unknown as RelayEffectEventRow[];
+    return { import: importRow, effects, events };
+  }
+
+  private toEvidence(rows: {
+    import: RelayImportRow;
+    effects: RelayEffectRow[];
+    events: RelayEffectEventRow[];
+  }): StoredRelayEvidence {
+    const eventsByEffect = new Map<string, RelayEffectEventRow[]>();
+    for (const event of rows.events) {
+      const list = eventsByEffect.get(event.effect_id) ?? [];
+      list.push(event);
+      eventsByEffect.set(event.effect_id, list);
+    }
+    // Rows are re-validated through the same rules as file input, so a
+    // corrupt or hand-edited evidence row fails explicitly on read.
+    const doc = validateRelayHistoryDoc({
+      schema: rows.import.schema,
+      histories: rows.effects.map((effect) => ({
+        record: {
+          id: effect.effect_id,
+          key: effect.effect_key,
+          kind: effect.kind,
+          status: effect.status,
+          createdAt: effect.created_at,
+          ...(effect.submitted_at !== null
+            ? { submittedAt: effect.submitted_at }
+            : {}),
+          ...(effect.settled_at !== null
+            ? { settledAt: effect.settled_at }
+            : {}),
+          updatedAt: effect.updated_at,
+        },
+        events: (eventsByEffect.get(effect.effect_id) ?? []).map((event) => ({
+          seq: event.seq,
+          effectId: event.effect_id,
+          key: effect.effect_key,
+          kind: effect.kind,
+          ...(event.from_status !== null
+            ? { fromStatus: event.from_status }
+            : {}),
+          toStatus: event.to_status,
+          cause: event.cause,
+          at: event.at,
+        })),
+        coverage: effect.coverage,
+      })),
+    });
+    if (
+      doc.histories.length !== rows.import.effect_count ||
+      doc.histories.reduce((t, h) => t + h.events.length, 0) !==
+        rows.import.event_count
+    ) {
+      throw new AgentLensStorageError(
+        `Run ${rows.import.run_id}: evidence row count does not match the recorded import counts`,
+      );
+    }
+    return {
+      runId: rows.import.run_id,
+      schema: doc.schema,
+      sessionSha256: rows.import.session_sha256,
+      historySha256: rows.import.history_sha256,
+      importedAt: rows.import.imported_at,
+      histories: doc.histories,
+    };
+  }
+
+  /**
+   * Reads the Relay evidence attached to a run, or undefined when the run
+   * was imported without a `--relay-history` sidecar.
+   */
+  getRelayEvidence(runId: string): StoredRelayEvidence | undefined {
+    const rows = this.evidenceRows(runId);
+    return rows === null ? undefined : this.toEvidence(rows);
+  }
+
+  /** All stored Relay evidence, keyed by run id. */
+  listRelayEvidence(): Map<string, StoredRelayEvidence> {
+    const runIds = this.db
+      .prepare("SELECT run_id FROM relay_evidence_imports")
+      .all() as unknown as { run_id: string }[];
+    const map = new Map<string, StoredRelayEvidence>();
+    for (const { run_id: runId } of runIds) {
+      map.set(runId, this.getRelayEvidence(runId) as StoredRelayEvidence);
+    }
+    return map;
   }
 
   /** Reads a run back with events in original order; re-validates the result. */

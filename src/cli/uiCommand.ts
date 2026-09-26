@@ -14,7 +14,11 @@ import { type ColorMode, detectColorMode } from "../tui/theme.js";
 export function loadTuiData(dbPath: string): TuiData {
   const store = SqliteTraceStore.openReadOnly(dbPath);
   try {
-    return { dbPath, runs: store.listRuns() };
+    return {
+      dbPath,
+      runs: store.listRuns(),
+      evidence: store.listRelayEvidence(),
+    };
   } finally {
     store.close();
   }

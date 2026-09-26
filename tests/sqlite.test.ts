@@ -39,13 +39,13 @@ afterEach(() => {
 });
 
 describe("SqliteTraceStore", () => {
-  it("migrates a fresh database to schema version 1", () => {
+  it("migrates a fresh database to schema version 2", () => {
     const store = SqliteTraceStore.open(":memory:");
     try {
       const version = store.database.prepare("PRAGMA user_version").get() as {
         user_version: number;
       };
-      expect(version.user_version).toBe(1);
+      expect(version.user_version).toBe(2);
     } finally {
       store.close();
     }
@@ -77,7 +77,7 @@ describe("SqliteTraceStore", () => {
       const version = second.database.prepare("PRAGMA user_version").get() as {
         user_version: number;
       };
-      expect(version.user_version).toBe(1);
+      expect(version.user_version).toBe(2);
     } finally {
       second.close();
     }

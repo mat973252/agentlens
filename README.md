@@ -177,3 +177,35 @@ agentlens ui [--db ./.agentlens/agentlens.db] [--color auto|truecolor|ansi256|an
 配色：终端暗色适配 mat973252.github.io 调色板（ink `#142121`/paper `#fbf9f8`/mint `#83cebe`/muted `#61706b`/teal `#4aab96` + 失败 `#e0705a`/警告 `#d9a848`/选区 `#274642`），自动按 `COLORTERM`/`TERM`/`WT_SESSION` 降级 truecolor→ansi256→ansi16→none；`NO_COLOR` 完全禁用色彩，`--color` 可手动指定。Logo 为文本标记 `M·`，不使用图片协议。
 
 终端要求：stdin/stdout 均为 TTY，否则报错并退出码 1（提示改用 `runs`/`inspect`/`diff`）；最小 50×12（提示小于要求），≥80×24 完整可用；SIGWINCH 实时重排不丢布局；含中文/emoji 内容按占宽正确对齐。已验证 Ubuntu (tmux, Konsole)；Windows Terminal 代码路径相同（Node raw mode + VT 序列），未在本环境验证。
+
+## M8（阶段实现，未独立验收）：离线 Pi + Relay effect evidence
+
+> 本节只记录**已实现的阶段代码**。M8 仍**未独立验收**，Relay 整体安全门槛仍关闭；本功能不进入 Relay Step 6/7，也不构成生产 trace 覆盖证据。
+
+在既有 Pi session 导入上可选附加一份 Relay 的离线 effect 历史导出（`relay effects --history --json`，schema `relay.effect-history/1`）：
+
+```bash
+agentlens import <pi-session.jsonl> --format pi \
+  --relay-history <relay-effect-history.json> [--db ./.agentlens/agentlens.db]
+
+agentlens inspect <run-id> [--json] [--db ...]     # 新增 Relay effect evidence 段
+agentlens diff <runA> <runB> [--json] [--db ...]   # 新增独立的 evidence 对比段
+agentlens ui [--db ...]                            # detail 新增 relay 标签页
+```
+
+安全输入约定：`--relay-history` **只接受本机文件**，只与 `--format pi` 同用（其他格式明确报错并且不写库）；不访问活动 journal、不做网络摄取、不调用真实 provider/model、不执行或 reconcile 任何 effect。所有读取路径只读。
+
+关联语义（`Relay history` 是**独立观测证据**，不是 AgentEvent）：
+
+- 唯一被接受的关联是**精确 key 匹配**：已持久化的 `relay_submit_action` 工具调用参数 `actionId`/`operationId` 组成 journal key `${actionId}:${operationId}`，并在有 kind 时要求 `mcp:${actionId}` 一致。
+- 精确匹配**不证明独占归属、会话绑定或因果关系**：key 可跨调用/会话复用，journal 不含 Pi identity。每条匹配都标注 ownership unverified；同一 key 被多次调用命中时额外标注 shared key。
+- 缺少参数、kind 不一致或 journal 无该 key 都**不建立关联**；本次会话未匹配到的 evidence 显式列为 unassociated。不使用时间、路径、文本或顺序猜测。
+- Relay 状态 `PREPARED`/`SUBMITTED`/`UNKNOWN`/`CONFIRMED`/`FAILED` 原样保留：即使 Pi 的 toolResult `isError=false`、Run 判定为 passed，`UNKNOWN` 依旧显示为 `UNKNOWN`。
+- 缺失的 Recovery 显示为 unknown/unrecorded（本证据不含 recovery 来源），不写成 “none”，也不合成事件。
+- 转移时间保留 journal 原始时钟与 seq 顺序，不与 Pi 时间戳做因果排序。
+
+校验与原子性：导入前校验 schema 版本、状态取值、effect ID/key/kind 一致性、`seq` 唯一、转移链首事件为 `prepare`、链上 `fromStatus` 与上一条 `toStatus` 相接、最后一条观测转移等于最新快照状态、coverage（`observed`/`partial`/`unavailable`）与实际事件相符；不符合时在**写入之前**失败。空/旧库导出保持 `unavailable`，不回填历史。Run 与 evidence 在同一事务写入：非法 sidecar、重复导入、事务中断都不会留下半条记录。
+
+存储字段白名单（`relay_evidence_imports` / `relay_effects` / `relay_effect_events`，schema 版本 2）：effect ID、key、kind、status、快照时间、转移 `seq`/`fromStatus`/`toStatus`/`cause`/`at`、coverage，以及来源文件 SHA-256 与导入时间。**不持久化也不导出** provider 自由文本 `reason`、`remoteRef`、结果载荷、`intent`、`requestHash` 或任何其他 sidecar 字段；evidence 表也不重复存放 Pi 的原始参数/结果（Pi 侧 `source` 载荷语义保持 M6 现状不变）。
+
+fixtures：`fixtures/pi-relay/` 为实际探针产物（成功 / commit-then-503 UNKNOWN / 两次调用各一组 Pi session + 匹配的 Relay 历史导出），来源、哈希与版本见 [fixtures/pi-relay/PROVENANCE.md](fixtures/pi-relay/PROVENANCE.md)。会话由真实 Pi `AgentSession` 与确定性本机假 model/loopback provider 生成，其 token 数为**模拟值，不是真实模型度量**；文件仅做机器路径脱敏，不是手写 transcript。

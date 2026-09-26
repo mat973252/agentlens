@@ -1,6 +1,7 @@
 import type { AgentEvent } from "../core/event.js";
 import type { JsonValue } from "../core/json.js";
 import type { Run } from "../core/run.js";
+import type { StoredRelayEvidence } from "../storage/sqlite/store.js";
 import {
   durationOf,
   errorMessage,
@@ -11,6 +12,7 @@ import {
   toolName,
   toolOutcomes,
 } from "./eventDetails.js";
+import { formatRelayEvidenceDiffSection } from "./relayView.js";
 
 /** Pure text renderer for `agentlens diff <runA> <runB>`. */
 
@@ -184,7 +186,12 @@ const outcomeLine = (run: Run): string => {
     : base;
 };
 
-export function formatRunDiff(a: Run, b: Run): string {
+export function formatRunDiff(
+  a: Run,
+  b: Run,
+  aEvidence?: StoredRelayEvidence,
+  bEvidence?: StoredRelayEvidence,
+): string {
   const out: string[] = [`Diff ${a.id} vs ${b.id}`, "", "Summary"];
   const aDuration = durationOf(a);
   const bDuration = durationOf(b);
@@ -345,6 +352,10 @@ export function formatRunDiff(a: Run, b: Run): string {
     }
   }
   if (differences === 0) out.push("  (no signature or payload differences)");
+
+  // Observed evidence is compared in its own section, never merged into
+  // run/tool metrics or the timeline alignment.
+  out.push("", ...formatRelayEvidenceDiffSection(a, b, aEvidence, bEvidence));
 
   return `${out.join("\n")}\n`;
 }
