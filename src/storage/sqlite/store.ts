@@ -107,7 +107,10 @@ const EXPECTED_TABLES = [
  * silently mangled events.
  */
 export class SqliteTraceStore {
-  private constructor(private readonly db: DatabaseSyncType) {}
+  private constructor(
+    private readonly db: DatabaseSyncType,
+    private readonly hasRelayEvidence = true,
+  ) {}
 
   /** Opens (and migrates) a database at `path`, or in-memory when ":memory:". */
   static open(path: string | ":memory:" = defaultDbPath()): SqliteTraceStore {
@@ -129,7 +132,8 @@ export class SqliteTraceStore {
    * Opens an existing database strictly read-only for inspection. Never
    * creates the file or its directory and never runs migrations: a missing
    * file, a non-SQLite/corrupt file, a database that is not an AgentLens
-   * store, or one at a different schema version fails explicitly.
+   * store, or an unsupported schema version fails explicitly. Pre-M8 stores
+   * remain readable without migration and have no Relay evidence.
    */
   static openReadOnly(path: string): SqliteTraceStore {
     if (!existsSync(path)) {
@@ -147,6 +151,7 @@ export class SqliteTraceStore {
         { cause: error },
       );
     }
+    let hasRelayEvidence = true;
     try {
       const target = MIGRATIONS.reduce((max, m) => Math.max(max, m.version), 0);
       let version: number;
@@ -174,18 +179,24 @@ export class SqliteTraceStore {
       if (version > target) {
         throw new UnsupportedSchemaVersionError(version, target, "database");
       }
-      if (version < target || tables.length !== EXPECTED_TABLES.length) {
+      const requiredTables =
+        version === 1 ? ["runs", "events"] : EXPECTED_TABLES;
+      if (
+        version < 1 ||
+        !requiredTables.every((name) => tables.includes(name))
+      ) {
         throw new AgentLensStorageError(
           version === 0
             ? `Database ${path} is not an AgentLens store (schema version 0)`
             : `Database ${path} has schema version ${version}; this AgentLens reads version ${target}. Read-only commands do not migrate.`,
         );
       }
+      hasRelayEvidence = version >= 2;
     } catch (error) {
       db.close();
       throw error;
     }
-    return new SqliteTraceStore(db);
+    return new SqliteTraceStore(db, hasRelayEvidence);
   }
 
   /**
@@ -376,12 +387,14 @@ export class SqliteTraceStore {
    * was imported without a `--relay-history` sidecar.
    */
   getRelayEvidence(runId: string): StoredRelayEvidence | undefined {
+    if (!this.hasRelayEvidence) return undefined;
     const rows = this.evidenceRows(runId);
     return rows === null ? undefined : this.toEvidence(rows);
   }
 
   /** All stored Relay evidence, keyed by run id. */
   listRelayEvidence(): Map<string, StoredRelayEvidence> {
+    if (!this.hasRelayEvidence) return new Map();
     const runIds = this.db
       .prepare("SELECT run_id FROM relay_evidence_imports")
       .all() as unknown as { run_id: string }[];

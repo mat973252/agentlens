@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -39,6 +40,33 @@ afterEach(() => {
 });
 
 describe("SqliteTraceStore", () => {
+  it("reads pre-M8 runs and absent evidence without migrating the file", () => {
+    const path = join(tmpDir(), "legacy.db");
+    const run = loadRun("success-basic.json");
+    const writable = SqliteTraceStore.open(path);
+    writable.saveRun(run);
+    writable.database.exec(
+      "DROP TABLE relay_effect_events; DROP TABLE relay_effects; DROP TABLE relay_evidence_imports; PRAGMA user_version = 1",
+    );
+    writable.close();
+    const hash = () =>
+      createHash("sha256").update(readFileSync(path)).digest("hex");
+    const before = hash();
+    const mtime = statSync(path).mtimeMs;
+    const reader = SqliteTraceStore.openReadOnly(path);
+    try {
+      expect(reader.listRuns()).toEqual([run]);
+      expect(reader.getRelayEvidence(run.id)).toBeUndefined();
+      expect(reader.listRelayEvidence().size).toBe(0);
+      expect(
+        reader.database.prepare("PRAGMA user_version").get(),
+      ).toMatchObject({ user_version: 1 });
+    } finally {
+      reader.close();
+    }
+    expect(hash()).toBe(before);
+    expect(statSync(path).mtimeMs).toBe(mtime);
+  });
   it("migrates a fresh database to schema version 2", () => {
     const store = SqliteTraceStore.open(":memory:");
     try {
