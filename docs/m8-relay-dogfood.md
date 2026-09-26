@@ -45,3 +45,7 @@
 - 该阶段不含 Relay 产品代码、活动 journal 读取、网络摄取、真实 provider/model、用户会话/凭据、执行/reconcile、npm 发布或 Web UI；所有输入路径只读。
 - 门槛第 4 条的 CLI/TUI 对照只覆盖 evidence 与既有 Pi Run/tool 语义，不构成 Run/Step/Recovery 的真实覆盖：Relay 证据不含 Pi identity，缺失 Recovery 显示 unknown/unrecorded。
 - M8 保持**未独立验收**；Relay 整体安全门槛仍关闭，不进入其 Step 6/7，本阶段亦不作为生产 trace 或 Relay 可发布的证据。
+
+## 2026-09-26 独立验收结论
+
+离线 evidence 适配与隔离 CLI/TUI 试用已通过，证据与范围见 [独立验收记录](m8-independent-acceptance-2026-09-26.md)。先前未验收状态是历史快照。生产 Run/Step/Recovery 来源和 Relay 整体安全门槛仍未解决，不能将本次通过扩展为这些能力通过。

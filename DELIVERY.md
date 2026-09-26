@@ -116,3 +116,7 @@
 - 存储为独立表（schema 版本 2）并与 Run 同事务写入；只保存白名单字段与来源 SHA-256/导入时间，不保存 `reason`/`remoteRef`/结果载荷/`intent`/`requestHash` 或任何其他 sidecar 字段（哨兵字符串回归覆盖）。导入前完成 schema 版本、状态、ID/key、转移链与顺序、最新快照一致性、coverage 校验；非法 sidecar、重复导入均不留部分行。
 - fixtures 由 Relay `4a08b78` 的已验收探针实际生成（真实 Pi 0.87.0 AgentSession、确定性本机假 model、127.0.0.1 loopback provider、未修改的 Relay MCP），见 `fixtures/pi-relay/PROVENANCE.md`；token 数为模拟值。
 - 状态：**M8 仍未独立验收**，Relay 整体安全门槛仍关闭，不进入 Relay Step 6/7，也不宣称生产 trace 覆盖。Windows 全新检出/包/实际 TTY 与 Ubuntu Node 22/24 CI 由 Codex 独立验收。
+
+## M8 隔离证据适配验收（2026-09-26）
+
+用户要求 Codex 接手后，修复 schema-v1 旧数据库只读兼容，Windows 225 tests/lint/build、仓外包安装及实际 ConPTY 80x24/120x30/NO_COLOR/resize/退出恢复通过，Ubuntu Node22/24 CI 通过。M8 的离线 evidence 适配与隔离试用已验收；详见 docs/m8-independent-acceptance-2026-09-26.md。历史未验收记录保留为阶段快照。Relay 整体安全门槛仍关闭，不构成生产 trace 或完整 Run/Step/Recovery 覆盖，不推进真实外部效果。
