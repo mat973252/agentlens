@@ -12,7 +12,7 @@
 | M5 | 规则式循环检测 | 重复工具、文件、错误和 ping-pong 案例可复现 | 已验收 |
 | M6 | Pi、Generic JSONL，后续 Codex 适配 | 外部事件归一化后信息正确 | 已验收 |
 | M7 | Node 可打包交互式 TUI | 实际包安装、键盘操作与视觉核对 | 已验收 |
-| M8 | Relay 安全边界内真实试用 | 记录对照案例与集成成本 | 未开始 |
+| M8 | Relay 安全边界内真实试用 | 记录对照案例与集成成本 | 数据源不足，未验收 |
 
 每阶段验收记录须包含源码来源、版本或提交、运行环境、实际命令、结果、已知缺口及下一步决定。未验收成果不得标为完成；远端创建、推送和发布另行处理。
 
@@ -96,3 +96,9 @@
 - CI：最终 PR 提交的 [运行 36109727177](https://github.com/mat973252/agentlens/actions/runs/36109727177)、合入后的 [运行 36110184328](https://github.com/mat973252/agentlens/actions/runs/36110184328) 与本验收记录提交后的 [运行 36110274039](https://github.com/mat973252/agentlens/actions/runs/36110274039) 均通过 Ubuntu Node 22/24 两项作业。
 - 已知边界：本机验证的是 Windows ConPTY 终端协议，并非 Windows Terminal 应用本身；Node 22.13 最低补丁版未在本机单独运行。TUI 为只读本地视图，尚无 Relay 试用、Codex Adapter 或发布采纳证据。
 - 下一步：按项目规划准备 M8 Relay 真实试用，遵守 Relay 独立安全审查停点；两项目的 Node TUI 交付先完成 ctxpack M7。
+
+## M8 数据源复核（2026-09-26）
+
+- Relay effect 追加历史已由 Devin 实现并经 Codex 独立验收合并，见 [PR #3](https://github.com/mat973252/Relay/pull/3) 和[验收报告](https://github.com/mat973252/Relay/blob/main/reports/INDEPENDENT_EFFECT_HISTORY_ACCEPTANCE_2026-09-26.md)。它只能证明 Relay 记录的 effect 转移；旧库不补造缺失事件。
+- 依照 `docs/m8-relay-dogfood.md` 核对，当前 Relay 事件没有稳定的 Pi session/tool 关联，也没有原始 Run、Step、Recovery 流；AgentLens 现有导入器要求完整 Run，不能把 effect 转移改名后当作 Agent 运行。因此停止在“数据源不足”，未执行 M8 的导入/CLI/TUI 验收，也不宣称试用完成。
+- Relay 整体安全门槛仍关闭。下一步先在隔离环境验证 Pi 公共 API 对实际工具调用的稳定、非秘密关联证据，再决定是否需要 Devin 开发独立的 AgentLens 适配阶段；不运行真实外部效果，不伪造生产 trace。

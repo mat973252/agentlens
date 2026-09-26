@@ -24,3 +24,10 @@
 ## 停止点
 
 在真实事件来源与关联关系得到证据前，M8 保持未验收。此处的本机合成执行只能证明导入和展示路径，不能替代真实 Agent 的 Run/Step/Recovery 覆盖，也不能证明 Relay 可发布。
+
+## 2026-09-26 数据源复核
+
+- Relay [PR #3](https://github.com/mat973252/Relay/pull/3) 已合并；[独立验收报告](https://github.com/mat973252/Relay/blob/main/reports/INDEPENDENT_EFFECT_HISTORY_ACCEPTANCE_2026-09-26.md) 记录了追加式 effect 转移证据、只读一致快照和隔离回归。上文关于 `relay_effects` 只有最新状态的描述是 2026-09-25 快照；现在可读取已实际提交的 effect 转移，但旧库不补造历史。
+- 当前事件字段为 effect ID、key、kind、前后状态、原因类别和时间；没有 Pi session、tool call、Run 或 Step ID。MCP `operationId` 是跨会话的 effect 幂等键，不能证明它属于哪条 Pi 会话。Pi adapter 当前只注册 doctor；其 deferred 样本可读取 Pi session 信息，但未提供到 MCP effect 的已验证关联。
+- AgentLens 现有导入格式要求完整 Run；Generic 格式要求 `run` 及标准事件。现有模型没有独立 effect/recovery 事件类型。将 Relay effect 历史强行包装成 Run 会制造不存在的执行事实。
+- 因此本次在门槛第 4 条前停止：目前无法以可信关联完成 Run、Step、Effect、Recovery 的 CLI/TUI 对照试用。M8 状态为**数据源不足、未验收**。后续只可在独立阶段验证 Pi 公共 API 是否能为真实调用提供稳定、非秘密的 session/tool 关联；证据成立后再决定是否派 AgentLens 适配。Relay 整体安全门槛仍关闭，不运行真实外部效果。
