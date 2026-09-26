@@ -291,7 +291,7 @@ export interface RelayCallMatch {
   expectedKey?: string;
   /** `mcp:${actionId}` when actionId is present. */
   expectedKind?: string;
-  /** Kind on the journal row when a key match exists but kind differs. */
+  /** Kind recorded on the journal row when a key match exists. */
   journalKind?: string;
   /** Index into the export's histories when the link exists. */
   historyIndex?: number;
@@ -379,6 +379,7 @@ export function matchRelayEvidence(
       kind: "matched",
       expectedKey,
       expectedKind,
+      journalKind: expectedKind,
       historyIndex: index,
       sharedKey: false,
     });
