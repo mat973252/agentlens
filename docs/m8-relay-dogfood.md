@@ -38,3 +38,14 @@
 - 这只证明该实验中的单向 **key match**，不证明 effect 的独占归属或普遍因果关系。Pi 0.87.0 无内置 MCP 客户端；不同桥可改写参数，同一 key 可跨调用/会话复用，journal 无 Pi identity。整体安全门槛仍关闭。
 - 下一阶段可复用实际 Pi session 的既有 Run/tool 导入语义，并将 Relay effect snapshot/committed transitions 作为独立、只读来源证据显示；不得改写成虚构的 Run/Step/Recovery AgentEvent。缺失 Recovery 来源显示“未知/未记录”，UNKNOWN 不受 Pi toolResult 的 isError=false 或 Run status 影响。
 - 适配任务见 `docs/devin-m8-relay-evidence.md`。本次仅解除“完全无法验证候选 key”的部分阻塞，M8 仍未验收；只有产品适配与 Windows/Ubuntu、实际 CLI/TUI/包安装独立验收后才记录隔离试用结论，且不称为生产覆盖或 Relay 安全通过。
+
+## 2026-09-26 阶段实现记录（仍未验收）
+
+- AgentLens 侧已实现离线适配：`agentlens import --format pi --relay-history <history.json>` 读取本机 `relay.effect-history/1` 导出，`inspect`/`diff`（文本与 `--json`）及 TUI `relay` 标签页把它作为**独立观测证据**展示；实现细节与限制见 README 的 M8 小节。
+- 该阶段不含 Relay 产品代码、活动 journal 读取、网络摄取、真实 provider/model、用户会话/凭据、执行/reconcile、npm 发布或 Web UI；所有输入路径只读。
+- 门槛第 4 条的 CLI/TUI 对照只覆盖 evidence 与既有 Pi Run/tool 语义，不构成 Run/Step/Recovery 的真实覆盖：Relay 证据不含 Pi identity，缺失 Recovery 显示 unknown/unrecorded。
+- M8 保持**未独立验收**；Relay 整体安全门槛仍关闭，不进入其 Step 6/7，本阶段亦不作为生产 trace 或 Relay 可发布的证据。
+
+## 2026-09-26 独立验收结论
+
+离线 evidence 适配与隔离 CLI/TUI 试用已通过，证据与范围见 [独立验收记录](m8-independent-acceptance-2026-09-26.md)。先前未验收状态是历史快照。生产 Run/Step/Recovery 来源和 Relay 整体安全门槛仍未解决，不能将本次通过扩展为这些能力通过。

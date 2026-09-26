@@ -9,9 +9,11 @@ import {
   toolName,
   toolOutcomes,
 } from "../cli/eventDetails.js";
+import { formatRelayEvidenceSection } from "../cli/relayView.js";
 import { formatRunInspect } from "../cli/runView.js";
 import { detectPossibleLoops } from "../core/loops.js";
 import type { Run } from "../core/run.js";
+import type { StoredRelayEvidence } from "../storage/sqlite/store.js";
 
 /**
  * Read-only view-model builders for the TUI. Everything derives from the
@@ -23,6 +25,8 @@ import type { Run } from "../core/run.js";
 export interface TuiData {
   dbPath: string;
   runs: Run[];
+  /** Observed Relay effect evidence by run id (only for --relay-history imports). */
+  evidence: Map<string, StoredRelayEvidence>;
 }
 
 export type Tone =
@@ -49,6 +53,7 @@ export const DETAIL_TABS = [
   "tools",
   "errors",
   "loops",
+  "relay",
   "inspect",
 ] as const;
 export type DetailTab = (typeof DETAIL_TABS)[number];
@@ -80,11 +85,35 @@ const SECTION_NAMES = [
   "Errors",
   "Timeline",
   "Possible loops",
+  "Relay effect evidence",
   "Result",
 ];
 
 /** Items for one detail tab of a run. */
-export function detailItems(run: Run, tab: DetailTab): Item[] {
+export function detailItems(
+  run: Run,
+  tab: DetailTab,
+  evidence?: StoredRelayEvidence,
+): Item[] {
+  if (tab === "relay") {
+    const section = formatRelayEvidenceSection(run, evidence);
+    if (section === undefined) {
+      return [
+        {
+          summary:
+            "(no relay effect evidence — run was imported without --relay-history)",
+          tone: "faint",
+        },
+      ];
+    }
+    const full = `${section.join("\n")}\n`;
+    return section.map((line) => ({
+      summary: line,
+      tone: "paper" as Tone,
+      section: line === "Relay effect evidence",
+      detail: full,
+    }));
+  }
   if (tab === "timeline") {
     return run.events.map((event) => ({
       summary: `+${formatDurationMs(offsetOf(run, event))}  ${eventSummary(event)}`,
@@ -186,7 +215,7 @@ export function detailItems(run: Run, tab: DetailTab): Item[] {
     return items;
   }
   // inspect: exact `agentlens inspect` text; header rows are section rows.
-  return formatRunInspect(run)
+  return formatRunInspect(run, evidence)
     .replace(/\n$/, "")
     .split("\n")
     .map((line) => ({
@@ -195,7 +224,7 @@ export function detailItems(run: Run, tab: DetailTab): Item[] {
         ? eventTone(line.trim().split(/\s+/)[1] ?? "")
         : "paper",
       section: SECTION_NAMES.includes(line) || line.startsWith("Run "),
-      detail: formatRunInspect(run),
+      detail: formatRunInspect(run, evidence),
     }));
 }
 
@@ -340,14 +369,19 @@ const DIFF_SECTIONS = [
   "Errors",
   "Outcome",
   "Timeline diff",
+  "Relay effect evidence",
 ];
 
 /** Full `agentlens diff` text plus the row indexes of its section headers. */
 export function diffText(
   a: Run,
   b: Run,
+  aEvidence?: StoredRelayEvidence,
+  bEvidence?: StoredRelayEvidence,
 ): { lines: { text: string; section: boolean }[] } {
-  const lines = formatRunDiff(a, b).replace(/\n$/, "").split("\n");
+  const lines = formatRunDiff(a, b, aEvidence, bEvidence)
+    .replace(/\n$/, "")
+    .split("\n");
   return {
     lines: lines.map((l) => ({
       text: l,

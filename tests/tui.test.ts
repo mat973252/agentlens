@@ -340,7 +340,8 @@ describe("render frames", () => {
     const diffEnd = renderFrame(state, data, g, theme)
       .map(stripAnsi)
       .join("\n");
-    expect(diffEnd).toContain("Timeline diff");
+    expect(diffEnd).toContain("Relay effect evidence");
+    expect(diffEnd).toContain("no evidence imported");
 
     state.screen = "pager";
     state.pager = {

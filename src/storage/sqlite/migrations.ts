@@ -92,4 +92,54 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX idx_events_run_type ON events (run_id, type);
     `,
   },
+  /**
+   * M8: offline Relay effect-history evidence attached to a Pi run.
+   * Separate evidence tables — never AgentEvents — holding only the
+   * allowlisted observed fields (id/key/kind/status, transition
+   * seq/from/to/cause/time, coverage) plus source provenance hashes.
+   */
+  {
+    version: 2,
+    name: "m8-relay-evidence",
+    sql: `
+      CREATE TABLE relay_evidence_imports (
+        run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+        schema TEXT NOT NULL,
+        session_sha256 TEXT NOT NULL,
+        history_sha256 TEXT NOT NULL,
+        imported_at TEXT NOT NULL,
+        effect_count INTEGER NOT NULL,
+        event_count INTEGER NOT NULL
+      );
+
+      CREATE TABLE relay_effects (
+        run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        effect_id TEXT NOT NULL,
+        effect_key TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('PREPARED','SUBMITTED','UNKNOWN','CONFIRMED','FAILED')),
+        coverage TEXT NOT NULL CHECK (coverage IN ('observed','partial','unavailable')),
+        created_at INTEGER NOT NULL,
+        submitted_at INTEGER,
+        settled_at INTEGER,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (run_id, effect_id),
+        UNIQUE (run_id, position)
+      );
+
+      CREATE TABLE relay_effect_events (
+        run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+        effect_id TEXT NOT NULL,
+        seq INTEGER NOT NULL,
+        from_status TEXT CHECK (from_status IS NULL OR from_status IN ('PREPARED','SUBMITTED','UNKNOWN','CONFIRMED','FAILED')),
+        to_status TEXT NOT NULL CHECK (to_status IN ('PREPARED','SUBMITTED','UNKNOWN','CONFIRMED','FAILED')),
+        cause TEXT NOT NULL CHECK (cause IN ('prepare','submit','execute','reconcile','unknown')),
+        at INTEGER NOT NULL,
+        PRIMARY KEY (run_id, effect_id, seq),
+        FOREIGN KEY (run_id, effect_id)
+          REFERENCES relay_effects (run_id, effect_id)
+      );
+    `,
+  },
 ];

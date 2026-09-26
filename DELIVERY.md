@@ -108,3 +108,15 @@
 - Relay [PR #4](https://github.com/mat973252/Relay/pull/4) 与[独立验收报告](https://github.com/mat973252/Relay/blob/main/reports/INDEPENDENT_PI_RELAY_LINK_ACCEPTANCE_2026-09-26.md) 证明实际 Pi 自定义工具桥中的参数与已提交 effect key 可以精确匹配。它不是原生 Pi MCP 客户端、独占归属或生产覆盖证据；同键复用仍需标记关联不确定。
 - 按 `docs/devin-m8-relay-evidence.md` 单独开发离线 Pi session + Relay effect evidence 适配。复用现有 Pi Run/tool 语义，Relay 转移单独呈现，不制造 Run/Step/Recovery 事件；缺失 Recovery 明确未知，UNKNOWN 不变为成功。
 - M8 仍未独立验收，Relay 整体安全门槛仍关闭。完成适配后再做 Windows fresh install/package/实际 TUI、Ubuntu Node22/24 CI 和来源只读核验。
+
+### 2026-09-26 M8 离线 evidence 适配（阶段实现，未独立验收）
+
+- 按 `docs/devin-m8-relay-evidence.md` 在 `devin/m8-relay-evidence` 实现阶段代码：`agentlens import --format pi --relay-history <history.json>` 只读本机文件附加 Relay `relay.effect-history/1` 导出；`inspect`/`diff` 新增文本与 `--json` 的独立 evidence 段；TUI detail 新增 `relay` 标签页，diff 增加 evidence section。
+- Relay 历史是独立观测证据：只按 `${actionId}:${operationId}` 精确 key（并校验 `mcp:${actionId}` kind）与已持久化的 `relay_submit_action` 调用关联，全部标注 ownership unverified，同键复用标 shared key；缺参数/kind 不符/无对应 journal 行不建立关联，未匹配的 evidence 显式列为 unassociated。不生成 Run/Step/Recovery 事件，`UNKNOWN` 不因 Pi toolResult 或 Run status 改变，缺失 Recovery 显示 unknown/unrecorded。
+- 存储为独立表（schema 版本 2）并与 Run 同事务写入；只保存白名单字段与来源 SHA-256/导入时间，不保存 `reason`/`remoteRef`/结果载荷/`intent`/`requestHash` 或任何其他 sidecar 字段（哨兵字符串回归覆盖）。导入前完成 schema 版本、状态、ID/key、转移链与顺序、最新快照一致性、coverage 校验；非法 sidecar、重复导入均不留部分行。
+- fixtures 由 Relay `4a08b78` 的已验收探针实际生成（真实 Pi 0.87.0 AgentSession、确定性本机假 model、127.0.0.1 loopback provider、未修改的 Relay MCP），见 `fixtures/pi-relay/PROVENANCE.md`；token 数为模拟值。
+- 状态：**M8 仍未独立验收**，Relay 整体安全门槛仍关闭，不进入 Relay Step 6/7，也不宣称生产 trace 覆盖。Windows 全新检出/包/实际 TTY 与 Ubuntu Node 22/24 CI 由 Codex 独立验收。
+
+## M8 隔离证据适配验收（2026-09-26）
+
+用户要求 Codex 接手后，修复 schema-v1 旧数据库只读兼容，Windows 225 tests/lint/build、仓外包安装及实际 ConPTY 80x24/120x30/NO_COLOR/resize/退出恢复通过，Ubuntu Node22/24 CI 通过。M8 的离线 evidence 适配与隔离试用已验收；详见 docs/m8-independent-acceptance-2026-09-26.md。历史未验收记录保留为阶段快照。Relay 整体安全门槛仍关闭，不构成生产 trace 或完整 Run/Step/Recovery 覆盖，不推进真实外部效果。
