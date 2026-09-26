@@ -31,3 +31,10 @@
 - 当前事件字段为 effect ID、key、kind、前后状态、原因类别和时间；没有 Pi session、tool call、Run 或 Step ID。MCP `operationId` 是跨会话的 effect 幂等键，不能证明它属于哪条 Pi 会话。Pi adapter 当前只注册 doctor；其 deferred 样本可读取 Pi session 信息，但未提供到 MCP effect 的已验证关联。
 - AgentLens 现有导入格式要求完整 Run；Generic 格式要求 `run` 及标准事件。现有模型没有独立 effect/recovery 事件类型。将 Relay effect 历史强行包装成 Run 会制造不存在的执行事实。
 - 因此本次在门槛第 4 条前停止：目前无法以可信关联完成 Run、Step、Effect、Recovery 的 CLI/TUI 对照试用。M8 状态为**数据源不足、未验收**。后续只可在独立阶段验证 Pi 公共 API 是否能为真实调用提供稳定、非秘密的 session/tool 关联；证据成立后再决定是否派 AgentLens 适配。Relay 整体安全门槛仍关闭，不运行真实外部效果。
+
+## 2026-09-26 隔离 Pi key-match 探针验收后的适配边界
+
+- Relay [PR #4](https://github.com/mat973252/Relay/pull/4) 已独立重放并合并；[验收记录](https://github.com/mat973252/Relay/blob/main/reports/INDEPENDENT_PI_RELAY_LINK_ACCEPTANCE_2026-09-26.md) 记录了实际 Pi AgentSession、自定义工具桥、未修改的 Relay MCP、loopback provider 的 4 次提交及 success/UNKNOWN/两调用对照。Pi 持久化工具参数中的 actionId/operationId 与 journal key 可以精确匹配。
+- 这只证明该实验中的单向 **key match**，不证明 effect 的独占归属或普遍因果关系。Pi 0.87.0 无内置 MCP 客户端；不同桥可改写参数，同一 key 可跨调用/会话复用，journal 无 Pi identity。整体安全门槛仍关闭。
+- 下一阶段可复用实际 Pi session 的既有 Run/tool 导入语义，并将 Relay effect snapshot/committed transitions 作为独立、只读来源证据显示；不得改写成虚构的 Run/Step/Recovery AgentEvent。缺失 Recovery 来源显示“未知/未记录”，UNKNOWN 不受 Pi toolResult 的 isError=false 或 Run status 影响。
+- 适配任务见 `docs/devin-m8-relay-evidence.md`。本次仅解除“完全无法验证候选 key”的部分阻塞，M8 仍未验收；只有产品适配与 Windows/Ubuntu、实际 CLI/TUI/包安装独立验收后才记录隔离试用结论，且不称为生产覆盖或 Relay 安全通过。

@@ -102,3 +102,9 @@
 - Relay effect 追加历史已由 Devin 实现并经 Codex 独立验收合并，见 [PR #3](https://github.com/mat973252/Relay/pull/3) 和[验收报告](https://github.com/mat973252/Relay/blob/main/reports/INDEPENDENT_EFFECT_HISTORY_ACCEPTANCE_2026-09-26.md)。它只能证明 Relay 记录的 effect 转移；旧库不补造缺失事件。
 - 依照 `docs/m8-relay-dogfood.md` 核对，当前 Relay 事件没有稳定的 Pi session/tool 关联，也没有原始 Run、Step、Recovery 流；AgentLens 现有导入器要求完整 Run，不能把 effect 转移改名后当作 Agent 运行。因此停止在“数据源不足”，未执行 M8 的导入/CLI/TUI 验收，也不宣称试用完成。
 - Relay 整体安全门槛仍关闭。下一步先在隔离环境验证 Pi 公共 API 对实际工具调用的稳定、非秘密关联证据，再决定是否需要 Devin 开发独立的 AgentLens 适配阶段；不运行真实外部效果，不伪造生产 trace。
+
+### 2026-09-26 隔离关联探针通过、适配待验收
+
+- Relay [PR #4](https://github.com/mat973252/Relay/pull/4) 与[独立验收报告](https://github.com/mat973252/Relay/blob/main/reports/INDEPENDENT_PI_RELAY_LINK_ACCEPTANCE_2026-09-26.md) 证明实际 Pi 自定义工具桥中的参数与已提交 effect key 可以精确匹配。它不是原生 Pi MCP 客户端、独占归属或生产覆盖证据；同键复用仍需标记关联不确定。
+- 按 `docs/devin-m8-relay-evidence.md` 单独开发离线 Pi session + Relay effect evidence 适配。复用现有 Pi Run/tool 语义，Relay 转移单独呈现，不制造 Run/Step/Recovery 事件；缺失 Recovery 明确未知，UNKNOWN 不变为成功。
+- M8 仍未独立验收，Relay 整体安全门槛仍关闭。完成适配后再做 Windows fresh install/package/实际 TUI、Ubuntu Node22/24 CI 和来源只读核验。
