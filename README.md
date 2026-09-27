@@ -6,6 +6,15 @@
 
 ## 先定位，再展开证据
 
+安装（Node.js 22.13+，推荐 Node 24）：
+
+```bash
+npm install -g @mat973252/agentlens@0.1.0
+agentlens --version
+```
+
+npm 包名带作者 scope；命令仍是 `agentlens`。不带 scope 的同名 npm 包属于其他作者。
+
 ```bash
 agentlens inspect <run-id> --summary --db ./.agentlens/agentlens.db
 agentlens inspect <run-id> --db ./.agentlens/agentlens.db
@@ -38,10 +47,10 @@ node dist/cli.js --help  # 或 pnpm dev -- --help
 
 ## M2：SDK Recorder 与 JSONL 导入
 
-SDK 入口为 `agentlens` 包（`dist/index.js`）。Recorder 与 Provider 无关：Harness 启动一次 run、发出归一化事件、最后完成或失败该 run。事件在 `completeRun()`/`failRun()` 时才整体写入本地 SQLite（运行中的 run 不会写入半截数据）。
+SDK 入口为 `@mat973252/agentlens` 包（`dist/index.js`）。Recorder 与 Provider 无关：Harness 启动一次 run、发出归一化事件、最后完成或失败该 run。事件在 `completeRun()`/`failRun()` 时才整体写入本地 SQLite（运行中的 run 不会写入半截数据）。
 
 ```ts
-import { Recorder, SqliteTraceStore } from "agentlens";
+import { Recorder, SqliteTraceStore } from "@mat973252/agentlens";
 
 const store = SqliteTraceStore.open();      // 默认 <cwd>/.agentlens/agentlens.db
 const recorder = new Recorder({ store });

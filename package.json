@@ -1,7 +1,12 @@
 {
-  "name": "agentlens",
-  "version": "0.0.1",
-  "description": "Record, replay and diff agent executions. Local-first agent execution debugger CLI.",
+  "name": "@mat973252/agentlens",
+  "version": "0.1.0",
+  "repository": "github:mat973252/agentlens",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "description": "Record, inspect and diff agent executions. Local-first agent execution debugger CLI.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {

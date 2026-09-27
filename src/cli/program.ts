@@ -4,7 +4,7 @@ import { registerUiCommand } from "./uiCommand.js";
 import { registerViewCommands } from "./viewCommands.js";
 
 export const CLI_NAME = "agentlens";
-export const CLI_VERSION = "0.0.1";
+export const CLI_VERSION = "0.1.0";
 
 export function createProgram(): Command {
   const program = new Command();
