@@ -4,6 +4,7 @@ import { defaultDbPath, SqliteTraceStore } from "../storage/sqlite/store.js";
 import { formatRunDiff } from "./diffView.js";
 import { relayEvidenceJson } from "./relayView.js";
 import { formatRunInspect, formatRunsTable } from "./runView.js";
+import { formatRunSummary } from "./summaryView.js";
 
 const reportError = (error: unknown): void => {
   console.error(
@@ -49,37 +50,50 @@ export function registerViewCommands(program: Command): void {
     .argument("<run-id>", "id of the run to inspect")
     .option("--db <path>", "SQLite database path", defaultDbPath())
     .option("--json", "emit machine-readable JSON instead of text")
-    .action((runId: string, options: { db: string; json?: boolean }) => {
-      try {
-        const store = SqliteTraceStore.openReadOnly(options.db);
+    .option("--summary", "show a bounded summary with error event IDs")
+    .action(
+      (
+        runId: string,
+        options: { db: string; json?: boolean; summary?: boolean },
+      ) => {
         try {
-          const run = store.getRun(runId);
-          const evidence = store.getRelayEvidence(runId);
-          if (options.json === true) {
-            process.stdout.write(
-              `${JSON.stringify(
-                {
-                  schema: "agentlens.inspect/1",
-                  run,
-                  relayEvidence:
-                    evidence === undefined
-                      ? null
-                      : relayEvidenceJson(run, evidence),
-                },
-                null,
-                2,
-              )}\n`,
+          if (options.summary && options.json) {
+            throw new AgentLensValidationError(
+              "--summary cannot be combined with --json",
             );
-          } else {
-            process.stdout.write(formatRunInspect(run, evidence));
           }
-        } finally {
-          store.close();
+          const store = SqliteTraceStore.openReadOnly(options.db);
+          try {
+            const run = store.getRun(runId);
+            const evidence = store.getRelayEvidence(runId);
+            if (options.json === true) {
+              process.stdout.write(
+                `${JSON.stringify(
+                  {
+                    schema: "agentlens.inspect/1",
+                    run,
+                    relayEvidence:
+                      evidence === undefined
+                        ? null
+                        : relayEvidenceJson(run, evidence),
+                  },
+                  null,
+                  2,
+                )}\n`,
+              );
+            } else if (options.summary) {
+              process.stdout.write(formatRunSummary(run, evidence));
+            } else {
+              process.stdout.write(formatRunInspect(run, evidence));
+            }
+          } finally {
+            store.close();
+          }
+        } catch (error) {
+          reportError(error);
         }
-      } catch (error) {
-        reportError(error);
-      }
-    });
+      },
+    );
 
   program
     .command("diff")

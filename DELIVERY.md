@@ -120,3 +120,6 @@
 ## M8 隔离证据适配验收（2026-09-26）
 
 用户要求 Codex 接手后，修复 schema-v1 旧数据库只读兼容，Windows 225 tests/lint/build、仓外包安装及实际 ConPTY 80x24/120x30/NO_COLOR/resize/退出恢复通过，Ubuntu Node22/24 CI 通过。M8 的离线 evidence 适配与隔离试用已验收；详见 docs/m8-independent-acceptance-2026-09-26.md。历史未验收记录保留为阶段快照。Relay 整体安全门槛仍关闭，不构成生产 trace 或完整 Run/Step/Recovery 覆盖，不推进真实外部效果。
+# 社区反馈迭代：诊断摘要（2026-09-26）
+
+新增 `inspect --summary`，先显示有限的错误证据及事件 ID，再由用户展开完整运行。来源、边界和验收见 [调研记录](docs/community-research-2026-09-26.md)。Windows lint、230 项测试、构建和仓外 tarball 安装后的 JSONL 导入/摘要冒烟通过。摘要不推断根因，不改变运行状态或 Relay evidence。当前是源码分支交付，尚未发布；真实采用未测量。
