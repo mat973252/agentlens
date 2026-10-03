@@ -45,5 +45,7 @@ node dist/cli.js diff java-full java-prefix --db PATH_TO_REPLAY_DB --json --chec
 未结束的较短记录不能冒充工具调用或错误减少。这次门禁因 running 提前判定不足，
 不覆盖“两份已结束记录均缺 token”的分支；该分支可用现有 `examples/diff-gate-evidence.mjs` 独立验证。
 原始记录没有 tokens/cost：三个 token 指标保持缺失，费用不在当前 RunMetrics 契约内，不能声称本例验收了费用门禁。
+
+需要定位前缀缺失的具体调用时，运行`node dist/cli.js inspect java-prefix --db PATH_TO_REPLAY_DB --json`查看事件及payload；文本`diff java-full java-prefix`也可显示工具分布与时间线。JSON diff目前只提供状态、门禁与Relay证据，不包含完整时间线。这里的差异来自人为截断同一来源，不能解释为一次代码修改减少了调用或错误。
 事件时间及 run duration 是本次回放写入时间；原始相对时间、工具耗时和人工审核等待另保留在 payload 中。
 二者不得混作模型速度基准，也不能据此声称独立用户采用或实时 SDK 接入已经通过。
