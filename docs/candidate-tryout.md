@@ -39,3 +39,18 @@ node dist/cli.js inspect candidate --db PATH_TO_EVIDENCE_DB --json
 每次只记录：日期、源码SHA/运行时、任务与比较目标、预设检查项、是否独立完成、卡点与维护者帮助、找到的错误event ID、结果是否改变下一步、下次是否仍想使用。参与者可用自选代号，不要求身份资料。维护者演示与独立使用分别标注；尚无人使用时填写“未测量”。
 
 分享默认只给去敏的最小片段及版本/复现步骤。SQLite和JSONL可能含完整提示词、工具参数/返回值、身份、私有路径及凭据；不要直接上传真实库或压缩整个输出目录。哈希不是脱敏，也不证明可公开。合成包无需上传，脚本没有上传功能。
+
+## 在仓库外接入候选 SDK
+
+要把候选用于自己的录制脚本，在上面已构建的 `agentlens-candidate` 根目录打包，并安装到一个新消费者目录：
+
+```sh
+mkdir ../agentlens-consumer
+npm pack --pack-destination ../agentlens-consumer
+cd ../agentlens-consumer
+npm init -y
+npm install ./mat973252-agentlens-0.1.0.tgz
+node --input-type=module -e "import('@mat973252/agentlens').then(() => console.log('SDK import OK'))"
+```
+
+tarball文件名对应当前候选版本；后续版本变化时使用`npm pack`实际输出的文件名。此处安装的是本地候选tarball，不是公共npm 0.1.0。不要用候选覆盖已有业务工程的依赖；先在新目录参照[README的SDK示例](../README.md)建立录制脚本。CLI仍使用原候选源码的`node /实际源码路径/dist/cli.js`，将`--db`指向消费者生成的数据库。每次独立试用使用新数据库，保留实际源码SHA、tarball和命令退出码。
