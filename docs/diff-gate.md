@@ -2,8 +2,10 @@
 
 目的：在已有 `diff A B` 上比较指定检查项，不从时间线变化推断业务成败，不新增 diff 算法。A 是用户显式选定的基线，B 是候选；调用方负责保证任务、模型、工具权限与采样条件可比。
 
+先按 [README 的开发环境说明](../README.md#开发环境)构建当前源码，并从仓库根目录运行本地入口；公共 0.1.0 包不包含此门禁。
+
 ```bash
-agentlens diff baseline candidate --db traces.db --json \
+node dist/cli.js diff baseline candidate --db traces.db --json \
   --check status --check errors=0 --check inputTokens=100 --check durationMs=500
 ```
 

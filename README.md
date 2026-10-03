@@ -148,7 +148,7 @@ node dist/cli.js diff baseline candidate --db traces.db --json --check status --
 
 ## M5：规则式循环检测
 
-`inspect` 新增只读的 `Possible loops` 诊断区，由纯规则入口 `detectPossibleLoops(run)`（自 `agentlens` 包导出）计算。全部判定只依赖已存储的 AgentEvent（工具名、输入、输出、错误文本、事件顺序），不做语义推断、不调用 LLM；每条信号给出规则名、触发证据（事件 ID 范围与次数）与置信边界，无命中时明确输出 `No loop signals detected.`。
+`inspect` 新增只读的 `Possible loops` 诊断区，由纯规则入口 `detectPossibleLoops(run)`（自 `@mat973252/agentlens` 包导出）计算。全部判定只依赖已存储的 AgentEvent（工具名、输入、输出、错误文本、事件顺序），不做语义推断、不调用 LLM；每条信号给出规则名、触发证据（事件 ID 范围与次数）与置信边界，无命中时明确输出 `No loop signals detected.`。
 
 规则与阈值（`src/core/loops.ts` 的 `LOOP_RULE_THRESHOLDS`）：
 
