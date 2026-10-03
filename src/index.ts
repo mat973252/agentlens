@@ -45,6 +45,7 @@ export {
   type EmitOptions,
   Recorder,
   type RecorderOptions,
+  type RunCompletion,
   RunHandle,
   type RunHandleStatus,
   type StartRunOptions,

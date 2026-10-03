@@ -47,7 +47,7 @@ node dist/cli.js --help  # 或 pnpm dev -- --help
 
 ## M2：SDK Recorder 与 JSONL 导入
 
-SDK 入口为 `@mat973252/agentlens` 包（`dist/index.js`）。Recorder 与 Provider 无关：Harness 启动一次 run、发出归一化事件、最后完成或失败该 run。事件在 `completeRun()`/`failRun()` 时才整体写入本地 SQLite（运行中的 run 不会写入半截数据）。
+SDK 入口为 `@mat973252/agentlens` 包（`dist/index.js`）。Recorder 与 Provider 无关：Harness 启动一次 run、发出归一化事件、最后完成或失败该 run。默认在 `completeRun()`/`failRun()` 时整体写入本地 SQLite；需要保留进程中断前的事件时，显式开启增量模式。
 
 ```ts
 import { Recorder, SqliteTraceStore } from "@mat973252/agentlens";
@@ -61,6 +61,25 @@ run.emit("tool.completed", { tool: "grep", success: true }, { parentId: t.id });
 run.completeRun();                          // 或 run.failRun(error)
 store.close();
 ```
+
+### 运行中持久化（当前源码）
+
+```ts
+const recorder = new Recorder({ store, persistence: "incremental" });
+const run = recorder.startRun({ agent: "my-agent" }); // 提交 run.started
+run.emit("message.output", "checkpoint reached");   // 返回前提交这一个事件
+run.completeRun();                                  // 终态事件与状态同一事务提交
+```
+
+每次成功返回的 `startRun`/`emit` 都有已提交记录；进程被强杀后，重新打开数据库可读到最后提交的有序前缀。未结束的记录保持 `running`，不自动推断成功、失败或进程仍存活。事件写入发生错误时抛出异常，数据库与 handle 都保留之前的前缀。该保证覆盖进程中断；磁盘损坏或设备不兑现刷盘不在本次验证范围内。
+
+可复制的本地崩溃示例：`corepack pnpm build` 后运行 `node examples/incremental-crash.mjs`。它等待 20 个消息事件落盘，再强杀写入进程，用真正的 CLI 验证 21 个事件（含 run.started）仍可读，并打印保留的临时数据库路径及再次 inspect 命令。示例不执行外部工具操作。
+
+SQLite 每次只插入一个事件并更新运行摘要，不重写历史事件、不替换 run 行，也不修改已附加的 Relay 证据。一个 run 由一个 handle 写入；存储以预期事件数拒绝过期写入者。此模式不提供重启后继续原 handle 的 API。只读命令依旧不迁移旧库，run 成功也不会把 Relay 的 UNKNOWN 改为 CONFIRMED。
+
+自定义 store 默认只需 `saveRun`。开启增量模式还必须实现同步、事务性的 `appendRunEvent(input, expectedEventCount, completion?)`：事件校验、唯一性、父事件关系、running 状态及预期前缀长度都通过后，原子插入事件；传入 completion 时同时更新 endedAt、终态和指标。任何异常均不得留下部分写入。缺少此方法时 Recorder 在构造阶段报错。
+
+结束时的校验或保存失败会抛出错误，handle 保持 active，事件列表不附加终态事件；修复原因后可继续记录或重试结束。SQLite 保存使用事务；自定义 store 也必须保证失败不写入部分数据。
 
 CLI 导入：将 JSONL trace 校验后写入同一 SQLite 存储（全部为本地处理，文件内容不上传）。
 
@@ -110,6 +129,14 @@ agentlens diff <runA> <runB> [--db ./.agentlens/agentlens.db]
 - 时间线差异：对事件签名（事件类型 + 工具名）执行确定性 LCS 对齐，`=`/`~`/`-`/`+` 表示相同、载荷不同、仅 A、仅 B；不匹配 ID、时间戳或载荷，也不作语义推断。
 
 缺失数据库、未知 Run、相同 Run ID、损坏或非 AgentLens 数据库、不支持的 schemaVersion 都以非零退出码明确报错；相同输入重复输出一致。
+
+### 显式 CI 门禁（当前源码）
+
+```bash
+agentlens diff baseline candidate --db traces.db --json --check status --check errors=0 --check inputTokens=100
+```
+
+每个 `--check` 显式指定检查项；数值阈值是允许的最大绝对增量（B−A），等于阈值通过。退出码：0 全部指定项通过，2 至少一项明确退化，3 无明确退化但数据不足，1 输入或读取错误。缺失 tokens 不补零，running/cancelled 不能形成完整比较；明确退化与缺失并存时返回 2 并保留所有检查结果。不指定 `--check` 时原有 diff 行为不变。完整规则、JSON 契约与可比性边界见 [门禁说明](docs/diff-gate.md)。
 
 ## M5：规则式循环检测
 
