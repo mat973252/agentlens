@@ -142,6 +142,8 @@ node dist/cli.js diff baseline candidate --db traces.db --json --check status --
 
 先按开发环境章节构建当前源码；以上入口明确使用本地构建，避免误调用旧的全局0.1.0。当前公共包不包含本轮未发布的门禁和示例。无需自备trace的完整步骤与两次试用记录见[候选试用](docs/candidate-tryout.md)。
 
+已有真实编码记录的维护者回放见[Java 会话诊断示例](docs/coding-session-replay.md)：完整与截断投影展示已恢复错误、缺失工具结果和数据不足门禁；两者来自同一会话，不代表两次独立执行或性能比较。
+
 每个 `--check` 显式指定检查项；数值阈值是允许的最大绝对增量（B−A），等于阈值通过。退出码：0 全部指定项通过，2 至少一项明确退化，3 无明确退化但数据不足，1 输入或读取错误。缺失 tokens 不补零，running/cancelled 不能形成完整比较；明确退化与缺失并存时返回 2 并保留所有检查结果。不指定 `--check` 时原有 diff 行为不变。完整规则、JSON 契约与可比性边界见 [门禁说明](docs/diff-gate.md)。
 
 ## M5：规则式循环检测
