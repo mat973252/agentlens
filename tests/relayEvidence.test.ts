@@ -753,6 +753,22 @@ describe("agentlens import --relay-history", () => {
       );
       expect(diffJson.relayEvidence.b.effects[0]?.latestStatus).toBe("UNKNOWN");
 
+      const gateJson = JSON.parse(
+        await runCli([
+          "diff",
+          must(ids[0], "run id"),
+          must(ids[1], "run id"),
+          "--db",
+          db,
+          "--json",
+          "--check",
+          "toolCalls=100",
+        ]),
+      );
+      expect(gateJson.gate.status).toBe("pass");
+      expect(process.exitCode).toBe(0);
+      expect(gateJson.relayEvidence).toEqual(diffJson.relayEvidence);
+
       const text = await runCli([
         "diff",
         must(ids[0], "run id"),

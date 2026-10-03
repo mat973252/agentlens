@@ -11,7 +11,10 @@ import {
   AgentLensStorageError,
   UnsupportedSchemaVersionError,
 } from "../../core/errors.js";
+import { parseAgentEvent } from "../../core/event.js";
+import { eventRelationshipIssues } from "../../core/eventRelationships.js";
 import type { JsonValue } from "../../core/json.js";
+import type { RunCompletion } from "../../core/recorder.js";
 import {
   type RelayEffectHistory,
   type RelayHistoryExport,
@@ -294,6 +297,125 @@ export class SqliteTraceStore {
     return run;
   }
 
+  /** Append to a running prefix without replacing its events or Relay evidence. */
+  appendRunEvent(
+    input: unknown,
+    expectedEventCount: number,
+    completion?: RunCompletion,
+  ): void {
+    const event = parseAgentEvent(input);
+    const terminal =
+      event.type === "run.completed" || event.type === "run.failed";
+    if (
+      event.type === "run.started" ||
+      terminal !== (completion !== undefined)
+    ) {
+      throw new AgentLensStorageError(
+        "Append requires a non-start event and completion metadata only for terminal events",
+      );
+    }
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const row = this.db
+        .prepare(
+          "SELECT started_at, status, metrics_json FROM runs WHERE id = ?",
+        )
+        .get(event.runId) as
+        | { started_at: string; status: string; metrics_json: string }
+        | undefined;
+      if (row?.status !== "running")
+        throw new Error(`Run ${event.runId} is not running`);
+      const last = this.db
+        .prepare(
+          "SELECT seq FROM events WHERE run_id = ? ORDER BY seq DESC LIMIT 1",
+        )
+        .get(event.runId) as { seq: number } | undefined;
+      const seq = (last?.seq ?? -1) + 1;
+      if (seq !== expectedEventCount)
+        throw new Error(
+          `Run ${event.runId} event count changed: expected ${expectedEventCount}, got ${seq}`,
+        );
+      const parent =
+        event.parentId === undefined
+          ? undefined
+          : (this.db
+              .prepare(
+                "SELECT id, timestamp, type, parent_id, data_json FROM events WHERE run_id = ? AND id = ?",
+              )
+              .get(event.runId, event.parentId) as EventRow | undefined);
+      const priorMetrics = JSON.parse(row.metrics_json);
+      const toolResult =
+        event.type === "tool.completed" || event.type === "tool.failed";
+      const metrics = completion?.metrics ?? {
+        ...priorMetrics,
+        toolCalls: priorMetrics.toolCalls + (toolResult ? 1 : 0),
+        failedToolCalls:
+          priorMetrics.failedToolCalls + (event.type === "tool.failed" ? 1 : 0),
+      };
+      const parentEvent =
+        parent === undefined
+          ? undefined
+          : parseAgentEvent({
+              id: parent.id,
+              runId: event.runId,
+              timestamp: parent.timestamp,
+              type: parent.type,
+              data: JSON.parse(parent.data_json),
+              ...(parent.parent_id === null
+                ? {}
+                : { parentId: parent.parent_id }),
+            });
+      const issues = eventRelationshipIssues(event, parentEvent);
+      if (issues.length > 0)
+        throw new Error(issues.map((issue) => issue.message).join("; "));
+      const run = parseRun({
+        id: event.runId,
+        startedAt: row.started_at,
+        status:
+          completion === undefined
+            ? "running"
+            : event.type === "run.completed"
+              ? "passed"
+              : "failed",
+        ...(completion === undefined ? {} : { endedAt: completion.endedAt }),
+        events: [],
+        metrics,
+      });
+      this.db
+        .prepare(
+          "INSERT INTO events (run_id, seq, id, timestamp, type, parent_id, data_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(
+          event.runId,
+          seq,
+          event.id,
+          event.timestamp,
+          event.type,
+          event.parentId ?? null,
+          JSON.stringify(event.data),
+        );
+      const updated = this.db
+        .prepare(
+          "UPDATE runs SET status = ?, ended_at = ?, metrics_json = ? WHERE id = ? AND status = 'running'",
+        )
+        .run(
+          run.status,
+          completion?.endedAt ?? null,
+          JSON.stringify(run.metrics),
+          event.runId,
+        );
+      if (Number(updated.changes) !== 1)
+        throw new Error(`Run ${event.runId} was not updated`);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw new AgentLensStorageError(
+        `Failed to append event ${event.id}: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
+  }
+
   private evidenceRows(runId: string): {
     import: RelayImportRow;
     effects: RelayEffectRow[];
@@ -407,6 +529,16 @@ export class SqliteTraceStore {
 
   /** Reads a run back with events in original order; re-validates the result. */
   getRun(id: string): Run {
+    // Keep metadata and events on one snapshot, including inside a caller's transaction.
+    this.db.exec("SAVEPOINT agentlens_read_run");
+    try {
+      return this.readRun(id);
+    } finally {
+      this.db.exec("RELEASE agentlens_read_run");
+    }
+  }
+
+  private readRun(id: string): Run {
     const runRow = this.db
       .prepare(
         "SELECT id, started_at, ended_at, agent, model, status, metrics_json FROM runs WHERE id = ?",

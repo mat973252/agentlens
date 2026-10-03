@@ -123,3 +123,17 @@
 # 社区反馈迭代：诊断摘要（2026-09-26）
 
 新增 `inspect --summary`，先显示有限的错误证据及事件 ID，再由用户展开完整运行。来源、边界和验收见 [调研记录](docs/community-research-2026-09-26.md)。Windows lint、230 项测试、构建和仓外 tarball 安装后的 JSONL 导入/摘要冒烟通过。摘要不推断根因，不改变运行状态或 Relay evidence。当前是源码分支交付，尚未发布；真实采用未测量。
+
+## L1 持久化与 L2 显式门禁（2026-10-03，当前源码）
+
+- L1：`persistence: "incremental"` 在开始/事件/终态成功返回前提交，失败不推进 handle；终态事件和状态在同一事务，旧事件不重写，过期写者被拒绝。开始前、开始后、工具返回后、终结前四个真实子进程强杀时点通过；未结束记录仍为 running，读不重放工具。schema-v1 只读兼容和 Relay UNKNOWN 回归保持通过。`examples/incremental-crash.mjs` 提供复制运行及强杀后实际 CLI inspect。
+- L2 已实现 `diff A B --check ...`，规则与边界见 [门禁说明](docs/diff-gate.md)。未选择门禁的输出兼容；新增失败、阈值、零基线、缺失/未完成、退化与缺失并存均有回归，UNKNOWN 不被通过结果升级。
+- Windows Node 24.19：lint、264 tests 通过；产品构建通过。独立静态审查未发现门禁 bug，指出的实际子进程退出码与非空 UNKNOWN 组合验收均补齐。静态审查不冒充独立重跑。
+- 最终 tarball 在仓库外新目录、空依赖缓存安装；Node 22.23.3/24.19 验证 SDK 增量接口、运行中 CLI inspect、强杀后 21 个事件及 hash/mtime 不变、终态指标，以及实际门禁子进程 0/1/2/3 退出码。依赖只有运行时三包，不借用仓库 devDependencies。本轮源码未发布。
+- L1 本轮工程切片通过；L2 固定 before/after 证据包见 `examples/diff-gate-evidence.mjs`。维护者实际运行通过：8/10事件、错误0→2、工具调用3→4、错误ID可追溯；真实 CLI 退化退出2、未记录usage退出3。导入前与执行后构建哈希一致，输入/脚本哈希记录，lint通过。故障为明确注入的合成任务，不是模型效果或外部用户证据。两个独立开发者重复使用仍未完成，不能把测试通过当成采用。
+
+### 并发读取补验（2026-10-03）
+
+真实双连接 WAL 回归复现：查询 run 元数据后、查询事件前，另一个连接完成 run，旧实现混读 running 与 run.completed 并报无效状态。`getRun` 现在以读取 savepoint 固定单个 run 的快照；下一次调用可见已提交终态，成功或失败读取均不提交调用者的外层事务。Windows Node24.19 全量266项、lint/build通过，Node22.23.3存储/增量27项通过，包括旧schema只读hash/mtime不变。独立静态审查无新问题，不等于额外测试复跑。
+
+README 同时明确自定义 store 必须同步原子提交；Recorder 不等待 Promise。事件载荷不会自动汇总 token/cost，目前 failRun 与中断前增量记录没有用量更新接口，缺失指标继续报数据不足。尚未发布，未增加独立采用证据。

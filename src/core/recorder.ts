@@ -42,12 +42,26 @@ export interface EmitOptions {
 }
 
 export interface RecorderOptions {
-  /** Where terminal runs are persisted (e.g. SqliteTraceStore). */
-  store: { saveRun(input: unknown): unknown };
+  /** Store writes must be synchronous and atomic; Promises are not awaited. */
+  store: {
+    saveRun(input: unknown): unknown;
+    appendRunEvent?(
+      input: unknown,
+      expectedEventCount: number,
+      completion?: RunCompletion,
+    ): void;
+  };
+  /** Opt in to committing start/emit/finish before each call returns. */
+  persistence?: "on-finish" | "incremental";
   /** Clock override for tests/demos. Defaults to `new Date().toISOString()`. */
   now?: () => string;
   /** Id generator override. Defaults to `crypto.randomUUID`. */
   newId?: () => string;
+}
+
+export interface RunCompletion {
+  endedAt: string;
+  metrics: RunMetrics;
 }
 
 /** Thrown for invalid Recorder lifecycle calls (emit after terminal, double complete, ...). */
@@ -59,9 +73,8 @@ export class AgentLensRecorderError extends Error {
 }
 
 /**
- * A single run being recorded. Events stay in memory until completeRun() or
- * failRun() persists the whole run (run row + ordered events) atomically via
- * the store — a still-running run is never half-written to the database.
+ * A single run being recorded. By default events stay in memory until finish.
+ * Incremental mode commits every accepted event before changing the handle.
  */
 export class RunHandle {
   private readonly recorder: Recorder;
@@ -72,8 +85,10 @@ export class RunHandle {
     model?: string;
   };
   private readonly eventList: AgentEvent[] = [];
+  private readonly eventsById = new Map<string, AgentEvent>();
   private state: RunHandleStatus = "active";
   private endedAt: string | undefined;
+  private completedMetrics: RunMetrics | undefined;
 
   constructor(recorder: Recorder, options: StartRunOptions) {
     this.recorder = recorder;
@@ -83,11 +98,11 @@ export class RunHandle {
     };
     if (options.agent !== undefined) this.run.agent = options.agent;
     if (options.model !== undefined) this.run.model = options.model;
-    this.eventList.push(
-      this.buildEvent("run.started", options.data ?? null, {
-        timestamp: this.run.startedAt,
-      }),
-    );
+    const started = this.buildEvent("run.started", options.data ?? null, {
+      timestamp: this.run.startedAt,
+    });
+    this.eventList.push(started);
+    this.eventsById.set(started.id, started);
   }
 
   get id(): string {
@@ -99,7 +114,9 @@ export class RunHandle {
   }
 
   get events(): readonly AgentEvent[] {
-    return this.eventList;
+    return this.recorder.persistence === "incremental"
+      ? structuredClone(this.eventList)
+      : this.eventList;
   }
 
   /**
@@ -119,16 +136,17 @@ export class RunHandle {
       );
     }
     const event = this.buildEvent(type, data, options);
-    if (
-      event.parentId !== undefined &&
-      !this.eventList.some((e) => e.id === event.parentId)
-    ) {
+    if (event.parentId !== undefined && !this.eventsById.has(event.parentId)) {
       throw new AgentLensValidationError(
         `event ${event.id}: parentId ${event.parentId} does not reference an earlier event in run ${this.run.id}`,
       );
     }
+    this.recorder.persistEvent(event, this.eventList.length);
     this.eventList.push(event);
-    return event;
+    this.eventsById.set(event.id, event);
+    return this.recorder.persistence === "incremental"
+      ? structuredClone(event)
+      : event;
   }
 
   /**
@@ -162,7 +180,7 @@ export class RunHandle {
           ? "failed"
           : "running",
       this.endedAt,
-      {},
+      this.completedMetrics ?? {},
     );
   }
 
@@ -189,10 +207,22 @@ export class RunHandle {
     metrics: Partial<RunMetrics>,
   ): Run {
     const endedAt = this.recorder.now();
-    this.eventList.push(this.buildEvent(type, data, { timestamp: endedAt }));
-    const run = this.buildRun(status, endedAt, metrics);
-    this.recorder.persistRun(run);
+    const event = this.buildEvent(type, data, { timestamp: endedAt });
+    const run = this.buildRun(status, endedAt, metrics, [
+      ...this.eventList,
+      event,
+    ]);
+    if (this.recorder.persistence === "incremental") {
+      this.recorder.persistEvent(event, this.eventList.length, {
+        endedAt,
+        metrics: run.metrics,
+      });
+    } else {
+      this.recorder.persistRun(run);
+    }
+    this.eventList.push(event);
     this.endedAt = endedAt;
+    this.completedMetrics = { ...run.metrics };
     this.state = status === "passed" ? "completed" : "failed";
     return run;
   }
@@ -201,11 +231,12 @@ export class RunHandle {
     status: RunStatus,
     endedAt: string | undefined,
     overrides: Partial<RunMetrics>,
+    events: readonly AgentEvent[] = this.eventList,
   ): Run {
-    const toolCalls = this.eventList.filter(
+    const toolCalls = events.filter(
       (e) => e.type === "tool.completed" || e.type === "tool.failed",
     ).length;
-    const failedToolCalls = this.eventList.filter(
+    const failedToolCalls = events.filter(
       (e) => e.type === "tool.failed",
     ).length;
     const metrics: RunMetrics = { toolCalls, failedToolCalls };
@@ -220,7 +251,7 @@ export class RunHandle {
       id: this.run.id,
       startedAt: this.run.startedAt,
       status,
-      events: this.eventList,
+      events,
       metrics,
     };
     if (endedAt !== undefined) run.endedAt = endedAt;
@@ -246,11 +277,18 @@ export class RunHandle {
  */
 export class Recorder {
   readonly store: RecorderOptions["store"];
+  readonly persistence: "on-finish" | "incremental";
   readonly now: () => string;
   readonly newId: () => string;
 
   constructor(options: RecorderOptions) {
     this.store = options.store;
+    this.persistence = options.persistence ?? "on-finish";
+    if (this.persistence === "incremental" && !this.store.appendRunEvent) {
+      throw new AgentLensRecorderError(
+        "Incremental recording requires store.appendRunEvent",
+      );
+    }
     this.now = options.now ?? (() => new Date().toISOString());
     this.newId = options.newId ?? (() => randomUUID());
   }
@@ -258,11 +296,23 @@ export class Recorder {
   /** Start a new run; emits the synthetic `run.started` event. */
   startRun(options: StartRunOptions = {}): RunHandle {
     const handle = new RunHandle(this, options);
+    if (this.persistence === "incremental") this.persistRun(handle.toRun());
     return handle;
   }
 
   /** @internal Persist a finished run; called by RunHandle. */
   persistRun(run: Run): void {
     this.store.saveRun(run);
+  }
+
+  /** @internal Commit one event before RunHandle updates its in-memory prefix. */
+  persistEvent(
+    event: AgentEvent,
+    expectedEventCount: number,
+    completion?: RunCompletion,
+  ): void {
+    if (this.persistence === "incremental") {
+      this.store.appendRunEvent?.(event, expectedEventCount, completion);
+    }
   }
 }

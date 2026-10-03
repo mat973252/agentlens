@@ -1,6 +1,11 @@
 import type { Command } from "commander";
 import { AgentLensValidationError } from "../core/errors.js";
 import { defaultDbPath, SqliteTraceStore } from "../storage/sqlite/store.js";
+import {
+  evaluateDiffGate,
+  formatDiffGate,
+  parseGateRules,
+} from "./diffGate.js";
 import { formatRunDiff } from "./diffView.js";
 import { relayEvidenceJson } from "./relayView.js";
 import { formatRunInspect, formatRunsTable } from "./runView.js";
@@ -104,9 +109,23 @@ export function registerViewCommands(program: Command): void {
     .argument("<runB>", "id of the second (comparison) run")
     .option("--db <path>", "SQLite database path", defaultDbPath())
     .option("--json", "emit machine-readable JSON instead of text")
+    .option(
+      "--check <rule>",
+      "opt-in gate: status or metric=max-absolute-increase; repeat for each check",
+      (value: string, previous: string[]) => [...previous, value],
+      [] as string[],
+    )
     .action(
-      (runA: string, runB: string, options: { db: string; json?: boolean }) => {
+      (
+        runA: string,
+        runB: string,
+        options: { db: string; json?: boolean; check: string[] },
+      ) => {
         try {
+          const rules =
+            options.check.length === 0
+              ? undefined
+              : parseGateRules(options.check);
           if (runA === runB) {
             throw new AgentLensValidationError(
               `Cannot diff run ${runA} with itself; provide two different run ids`,
@@ -118,13 +137,19 @@ export function registerViewCommands(program: Command): void {
             const b = store.getRun(runB);
             const aEvidence = store.getRelayEvidence(runA);
             const bEvidence = store.getRelayEvidence(runB);
+            const gate =
+              rules === undefined ? undefined : evaluateDiffGate(a, b, rules);
             if (options.json === true) {
               process.stdout.write(
                 `${JSON.stringify(
                   {
-                    schema: "agentlens.diff/1",
+                    schema:
+                      gate === undefined
+                        ? "agentlens.diff/1"
+                        : "agentlens.diff-gate/1",
                     a: { id: a.id, status: a.status },
                     b: { id: b.id, status: b.status },
+                    ...(gate === undefined ? {} : { gate }),
                     relayEvidence: {
                       a:
                         aEvidence === undefined
@@ -142,7 +167,16 @@ export function registerViewCommands(program: Command): void {
               );
             } else {
               process.stdout.write(formatRunDiff(a, b, aEvidence, bEvidence));
+              if (gate !== undefined)
+                process.stdout.write(formatDiffGate(gate));
             }
+            if (gate !== undefined)
+              process.exitCode =
+                gate.status === "regression"
+                  ? 2
+                  : gate.status === "insufficient_data"
+                    ? 3
+                    : 0;
           } finally {
             store.close();
           }

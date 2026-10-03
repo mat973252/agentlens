@@ -69,6 +69,105 @@ const runCli = async (args: string[]): Promise<string> => {
 const digest = (path: string) =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
 
+describe("agentlens diff --check", () => {
+  it("returns separate outcomes, preserves ordinary JSON and reads without writes", async () => {
+    const dir = tmpDir();
+    const db = fixtureDb(dir, [
+      "success-basic.json",
+      "run-failed-fatal-tool.json",
+    ]);
+    const before = {
+      hash: digest(db),
+      mtime: statSync(db).mtimeMs,
+      files: readdirSync(dir),
+    };
+    const args = [
+      "diff",
+      "run-success-basic",
+      "run-failed-fatal-tool",
+      "--db",
+      db,
+      "--json",
+    ];
+    try {
+      const ordinary = JSON.parse(await runCli(args));
+      expect(ordinary.schema).toBe("agentlens.diff/1");
+      expect(ordinary).not.toHaveProperty("gate");
+      expect(process.exitCode).toBe(0);
+      const failed = JSON.parse(
+        await runCli([...args, "--check", "status", "--check", "errors=0"]),
+      );
+      expect(failed.schema).toBe("agentlens.diff-gate/1");
+      expect(failed.gate.status).toBe("regression");
+      expect(failed.relayEvidence).toEqual(ordinary.relayEvidence);
+      expect(process.exitCode).toBe(2);
+      const passed = JSON.parse(
+        await runCli([...args, "--check", "toolCalls=100"]),
+      );
+      expect(passed.gate.status).toBe("pass");
+      expect(process.exitCode).toBe(0);
+      const text = await runCli(
+        args.filter((arg) => arg !== "--json").concat("--check", "status"),
+      );
+      expect(text).toContain("Timeline diff");
+      expect(text).toContain("Gate: regression");
+      expect({
+        hash: digest(db),
+        mtime: statSync(db).mtimeMs,
+        files: readdirSync(dir),
+      }).toEqual(before);
+    } finally {
+      process.exitCode = 0;
+    }
+  });
+
+  it("returns 3 for missing data and 1 for invalid rules without creating a database", async () => {
+    const dir = tmpDir();
+    const db = join(dir, "trace.db");
+    const store = SqliteTraceStore.open(db);
+    for (const id of ["a", "b"])
+      store.saveRun({
+        id,
+        startedAt: "2026-10-03T00:00:00Z",
+        status: "passed",
+        events: [],
+        metrics: { toolCalls: 0, failedToolCalls: 0 },
+      });
+    store.close();
+    try {
+      const gate = JSON.parse(
+        await runCli([
+          "diff",
+          "a",
+          "b",
+          "--db",
+          db,
+          "--json",
+          "--check",
+          "inputTokens=0",
+        ]),
+      );
+      expect(gate.gate.status).toBe("insufficient_data");
+      expect(process.exitCode).toBe(3);
+      await expectCliError(
+        [
+          "diff",
+          "a",
+          "b",
+          "--db",
+          join(dir, "missing.db"),
+          "--check",
+          "cost=0",
+        ],
+        "Invalid --check",
+      );
+      expect(readdirSync(dir)).toEqual(["trace.db"]);
+    } finally {
+      process.exitCode = 0;
+    }
+  });
+});
+
 const expectCliError = async (
   args: string[],
   contains: string,

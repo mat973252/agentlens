@@ -96,6 +96,61 @@ describe("Recorder", () => {
     store.close();
   });
 
+  it.each(["completeRun", "failRun"] as const)(
+    "%s can retry a rejected save without retaining a terminal event",
+    (method) => {
+      const saved: unknown[] = [];
+      let rejectSave = true;
+      const rec = new Recorder({
+        store: {
+          saveRun(input) {
+            if (rejectSave) throw new Error("storage unavailable");
+            saved.push(input);
+          },
+        },
+        now: clock(),
+        newId: ids(),
+      });
+      const run = rec.startRun();
+      const before = [...run.events];
+
+      expect(() => run[method]()).toThrow("storage unavailable");
+      expect(run.events).toEqual(before);
+      expect(run.status).toBe("active");
+      expect(run.toRun().endedAt).toBeUndefined();
+      expect(saved).toEqual([]);
+
+      run.emit("message.output", "recording continues");
+      rejectSave = false;
+      const finished = run[method]();
+      expect(finished.events.map((event) => event.type)).toEqual([
+        "run.started",
+        "message.output",
+        method === "completeRun" ? "run.completed" : "run.failed",
+      ]);
+      expect(saved).toEqual([finished]);
+    },
+  );
+
+  it("keeps a run unchanged when terminal metrics fail validation", () => {
+    const store = SqliteTraceStore.open(":memory:");
+    try {
+      const rec = new Recorder({ store, now: clock(), newId: ids() });
+      const run = rec.startRun();
+      const before = [...run.events];
+      expect(() => run.completeRun({ inputTokens: -1 })).toThrow(
+        AgentLensValidationError,
+      );
+      expect(run.events).toEqual(before);
+      expect(run.status).toBe("active");
+      const finished = run.completeRun({ inputTokens: 1 });
+      expect(finished.events).toHaveLength(2);
+      expect(store.getRun(run.id)).toEqual(finished);
+    } finally {
+      store.close();
+    }
+  });
+
   it("rejects invalid call order", () => {
     const rec = recorder();
     const run = rec.startRun();
@@ -175,5 +230,6 @@ describe("Recorder", () => {
       inputTokens: 100,
       outputTokens: 25,
     });
+    expect(run.toRun()).toEqual(finished);
   });
 });

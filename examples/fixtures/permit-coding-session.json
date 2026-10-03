@@ -1,0 +1,93 @@
+{
+  "source": {
+    "repository": "https://github.com/mat973252/ctxpack",
+    "commit": "5d47695f885c38a503ca7fa125352c2cf7051522",
+    "path": "experiments/recovery/historical-coding-2026-10-03.json",
+    "sha256": "f2476c29edad0eb6a84e344609e1693d7f6581bffc9b513b7b098814ea16c538",
+    "selection": "modelSmoke fields listed in session; no independent session",
+    "hashMeaning": "exact Git blob at source commit; working-tree line endings may differ"
+  },
+  "session": {
+    "id": "permit-proxy",
+    "result": "accepted_single_coding_smoke",
+    "version": "codex-cli 0.160.0",
+    "model": "gpt-6.1-sol",
+    "requestedEffort": "medium",
+    "candidateSha256": "d3eda589b8ef9f73eb29dc41c8ba5ae06800b946a6be45e5583919da5cfa76e0",
+    "recoveryMs": 92246.21500000001,
+    "sourceReviewWaitMs": 15825.568600000006,
+    "calls": [
+      {
+        "tool": "read_file",
+        "success": true,
+        "ms": 8074.3351999999995,
+        "elapsedMs": 711.3877000000011,
+        "repeated": false
+      },
+      {
+        "tool": "read_file",
+        "success": true,
+        "ms": 9001.0321,
+        "elapsedMs": 722.7870999999996,
+        "repeated": false
+      },
+      {
+        "tool": "read_file",
+        "success": true,
+        "ms": 14068.411399999999,
+        "elapsedMs": 731.4400999999998,
+        "repeated": false
+      },
+      {
+        "tool": "read_file",
+        "success": true,
+        "ms": 15019.137100000002,
+        "elapsedMs": 723.1683999999987,
+        "repeated": false
+      },
+      {
+        "tool": "read_file",
+        "success": true,
+        "ms": 15962.492199999999,
+        "elapsedMs": 710.9504000000034,
+        "repeated": false
+      },
+      {
+        "tool": "run_tests",
+        "success": true,
+        "ms": 24233.633,
+        "elapsedMs": 6083.324499999995,
+        "exitCode": 1
+      },
+      {
+        "tool": "apply_edit",
+        "success": true,
+        "ms": 38857.8082,
+        "elapsedMs": 2155.239600000001
+      },
+      {
+        "tool": "run_tests",
+        "success": true,
+        "ms": 41222.6777,
+        "elapsedMs": 21783.6331,
+        "exitCode": 0,
+        "sourceReviewWaitMs": 15824.720200000003
+      },
+      {
+        "tool": "run_tests",
+        "success": true,
+        "ms": 68231.4574,
+        "elapsedMs": 17447.24160000001,
+        "exitCode": 0,
+        "sourceReviewWaitMs": 0.8484000000025844
+      },
+      {
+        "tool": "read_file",
+        "success": true,
+        "ms": 85908.31920000001,
+        "elapsedMs": 745.9154999999882,
+        "repeated": true
+      }
+    ]
+  }
+}
