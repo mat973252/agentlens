@@ -1,8 +1,16 @@
 # 未发布候选的两次试用
 
-早期门禁功能基线是源码提交 `6c43a19b36932fa6493f973d49ca0e9f0c9d3d81`；包含快照读取修复与真实会话回放的后续基线为 `f207732f413eb89feec18f71d0fd9bc63e3e4239`。使用包含后者的候选源码，具体交付HEAD以随包的提交↔ZIP SHA256映射为准。这些变更尚未推送或发布，公共npm 0.1.0不能替代该源码；docs/examples也不在npm打包清单。拿不到源码应记录为交付阻碍，不继续使用旧包制造成功结果。
+早期门禁功能基线是源码提交 `6c43a19b36932fa6493f973d49ca0e9f0c9d3d81`；包含快照读取修复与真实会话回放的后续基线为 `f207732f413eb89feec18f71d0fd9bc63e3e4239`。包含这些修复的候选源码已在[草稿 PR #9](https://github.com/mat973252/agentlens/pull/9)公开，尚未发布为 npm 包。公共npm 0.1.0不能替代该源码；docs/examples也不在npm打包清单。
 
-在收到的候选源码目录执行（Node≥22.13，项目固定pnpm10.17.1）：
+从空目录取得候选（需 Git），记录实际检出的完整提交；分支会随审阅更新：
+
+```sh
+git clone --branch mat/l1-durable-recording --single-branch https://github.com/mat973252/agentlens.git agentlens-candidate
+cd agentlens-candidate
+git rev-parse HEAD
+```
+
+接着在候选源码根目录执行（Node≥22.13，项目固定pnpm10.17.1）：
 
 ```sh
 corepack pnpm install --frozen-lockfile
