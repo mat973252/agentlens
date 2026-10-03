@@ -5,13 +5,12 @@
 在收到的候选源码目录执行（Node≥22.13，项目固定pnpm10.17.1）：
 
 ```sh
-git rev-parse HEAD
 corepack pnpm install --frozen-lockfile
 corepack pnpm build
 node examples/diff-gate-evidence.mjs
 ```
 
-无Git元数据的源码包应使用维护者提供的提交信息和SHA256核对表；不要自行填写未经核对的版本。Windows中文路径建议使用已验证的Node24.19或Node22.23；记录实际`node --version`。
+先进入展开后的项目根目录。Git检出可另执行`git rev-parse HEAD`；没有`.git`的ZIP跳过此命令，改核对维护者提供的“源码提交↔ZIP SHA256”映射。ZIP哈希本身不能独立证明Git提交身份；没有可信映射时记为来源未核验。安装必须包含devDependencies以获得构建工具，首次需要网络及可用corepack，源码ZIP不是离线二进制包。Windows中文路径建议使用已验证的Node24.19或Node22.23；记录实际`node --version`。
 
 脚本打印新证据目录；父脚本成功退出0，内部CLI退化退出2、仅缺usage退出3是预期结果，不是安装失败。检查该目录的`diff.txt`、`gate.json`与`evidence.json`：基线通过，候选失败；错误数0→2、工具调用3→4，错误关联candidate-e3/e9；tokens未记录。若手工复查，使用`node dist/cli.js diff baseline candidate --db <证据目录>/traces.db --json --check status --check errors=0`。
 
