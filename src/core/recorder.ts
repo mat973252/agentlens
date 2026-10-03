@@ -42,7 +42,7 @@ export interface EmitOptions {
 }
 
 export interface RecorderOptions {
-  /** Store writes must be atomic: throwing must leave the prior state intact. */
+  /** Store writes must be synchronous and atomic; Promises are not awaited. */
   store: {
     saveRun(input: unknown): unknown;
     appendRunEvent?(

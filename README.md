@@ -77,7 +77,9 @@ run.completeRun();                                  // 终态事件与状态同�
 
 SQLite 每次只插入一个事件并更新运行摘要，不重写历史事件、不替换 run 行，也不修改已附加的 Relay 证据。一个 run 由一个 handle 写入；存储以预期事件数拒绝过期写入者。此模式不提供重启后继续原 handle 的 API。只读命令依旧不迁移旧库，run 成功也不会把 Relay 的 UNKNOWN 改为 CONFIRMED。
 
-自定义 store 默认只需 `saveRun`。开启增量模式还必须实现同步、事务性的 `appendRunEvent(input, expectedEventCount, completion?)`：事件校验、唯一性、父事件关系、running 状态及预期前缀长度都通过后，原子插入事件；传入 completion 时同时更新 endedAt、终态和指标。任何异常均不得留下部分写入。缺少此方法时 Recorder 在构造阶段报错。
+自定义 store 默认只需同步、原子性的 `saveRun`。开启增量模式还必须实现同步、事务性的 `appendRunEvent(input, expectedEventCount, completion?)`：事件校验、唯一性、父事件关系、running 状态及预期前缀长度都通过后，原子插入事件；传入 completion 时同时更新 endedAt、终态和指标。任何异常均不得留下部分写入。缺少此方法时 Recorder 在构造阶段报错。Recorder 不等待 Promise；异步 store 不受支持，不能据此承诺返回前已提交。
+
+Recorder 不从事件载荷自动累计 token/cost。当前只有 `completeRun(metrics)` 接受用量指标；`failRun(error)` 和中断前的增量记录没有用量更新接口。因此这些记录可能缺少用量，相关门禁会报告数据不足，不能当作零消耗。
 
 结束时的校验或保存失败会抛出错误，handle 保持 active，事件列表不附加终态事件；修复原因后可继续记录或重试结束。SQLite 保存使用事务；自定义 store 也必须保证失败不写入部分数据。
 
@@ -105,6 +107,8 @@ corepack pnpm demo   # 写入 .agentlens/agentlens.db 并导出 demo-trace.jsonl
 ## M3：查看本地运行记录
 
 `runs` 与 `inspect` 以只读方式打开数据库：不创建缺失文件、不改写记录、不触发迁移。
+
+单个 run 的状态、指标与事件在同一 SQLite 读取快照中取得，避免并发结束录制时混读新旧记录。多个 run 的列表或比较不承诺共用同一时间点的快照。
 
 ```bash
 agentlens runs [--db ./.agentlens/agentlens.db]        # 稳定排序的 Run 列表

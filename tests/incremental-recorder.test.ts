@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Recorder } from "../src/core/recorder.js";
 import { parseRelayHistoryExport } from "../src/core/relayEvidence.js";
 import { SqliteTraceStore } from "../src/storage/sqlite/store.js";
@@ -20,6 +20,59 @@ afterEach(() => {
 });
 
 describe("incremental Recorder", () => {
+  it("reads one committed snapshot when another connection finishes between queries", () => {
+    const path = databasePath();
+    const writer = SqliteTraceStore.open(path);
+    writer.database.exec("PRAGMA journal_mode = WAL");
+    const run = new Recorder({
+      store: writer,
+      persistence: "incremental",
+    }).startRun();
+    const before = run.toRun();
+    const reader = SqliteTraceStore.openReadOnly(path);
+    const prepare = reader.database.prepare.bind(reader.database);
+    let finished = false;
+    const spy = vi
+      .spyOn(reader.database, "prepare")
+      .mockImplementation((sql) => {
+        if (!finished && sql.includes("FROM events WHERE run_id")) {
+          finished = true;
+          run.completeRun({ inputTokens: 7 });
+        }
+        return prepare(sql);
+      });
+    try {
+      expect(reader.getRun(run.id)).toEqual(before);
+      expect(finished).toBe(true);
+      expect(reader.getRun(run.id)).toEqual(run.toRun());
+    } finally {
+      spy.mockRestore();
+      reader.close();
+      writer.close();
+    }
+  });
+
+  it("releases failed reads without committing a caller's transaction", () => {
+    const store = SqliteTraceStore.open(":memory:");
+    try {
+      const run = new Recorder({
+        store,
+        persistence: "incremental",
+      }).startRun();
+      expect(() => store.getRun("missing")).toThrow(/Run not found/);
+      store.database.exec("BEGIN");
+      store.database
+        .prepare("UPDATE runs SET agent = 'uncommitted' WHERE id = ?")
+        .run(run.id);
+      expect(store.getRun(run.id).agent).toBe("uncommitted");
+      expect(() => store.getRun("missing")).toThrow(/Run not found/);
+      store.database.exec("ROLLBACK");
+      expect(store.getRun(run.id).agent).toBeUndefined();
+    } finally {
+      store.close();
+    }
+  });
+
   it("does not let returned event objects change an already committed prefix", () => {
     const store = SqliteTraceStore.open(":memory:");
     try {

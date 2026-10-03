@@ -529,6 +529,16 @@ export class SqliteTraceStore {
 
   /** Reads a run back with events in original order; re-validates the result. */
   getRun(id: string): Run {
+    // Keep metadata and events on one snapshot, including inside a caller's transaction.
+    this.db.exec("SAVEPOINT agentlens_read_run");
+    try {
+      return this.readRun(id);
+    } finally {
+      this.db.exec("RELEASE agentlens_read_run");
+    }
+  }
+
+  private readRun(id: string): Run {
     const runRow = this.db
       .prepare(
         "SELECT id, started_at, ended_at, agent, model, status, metrics_json FROM runs WHERE id = ?",
