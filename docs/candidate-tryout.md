@@ -1,6 +1,6 @@
 # 未发布候选的两次试用
 
-本轮功能基线是源码提交 `6c43a19b36932fa6493f973d49ca0e9f0c9d3d81`。它尚未推送或发布，公共npm 0.1.0不能替代该源码；docs/examples也不在npm打包清单。需要维护者提供含该提交的仓库副本或源码包。拿不到源码应记录为交付阻碍，不继续使用旧包制造成功结果。
+早期门禁功能基线是源码提交 `6c43a19b36932fa6493f973d49ca0e9f0c9d3d81`；包含快照读取修复与真实会话回放的后续基线为 `f207732f413eb89feec18f71d0fd9bc63e3e4239`。使用包含后者的候选源码，具体交付HEAD以随包的提交↔ZIP SHA256映射为准。这些变更尚未推送或发布，公共npm 0.1.0不能替代该源码；docs/examples也不在npm打包清单。拿不到源码应记录为交付阻碍，不继续使用旧包制造成功结果。
 
 在收到的候选源码目录执行（Node≥22.13，项目固定pnpm10.17.1）：
 
@@ -8,6 +8,7 @@
 corepack pnpm install --frozen-lockfile
 corepack pnpm build
 node examples/diff-gate-evidence.mjs
+node examples/coding-session-replay.mjs
 ```
 
 先进入展开后的项目根目录。Git检出可另执行`git rev-parse HEAD`；没有`.git`的ZIP跳过此命令，改核对维护者提供的“源码提交↔ZIP SHA256”映射。ZIP哈希本身不能独立证明Git提交身份；没有可信映射时记为来源未核验。安装必须包含devDependencies以获得构建工具，首次需要网络及可用corepack，源码ZIP不是离线二进制包。Windows中文路径建议使用已验证的Node24.19或Node22.23；记录实际`node --version`。
@@ -15,6 +16,8 @@ node examples/diff-gate-evidence.mjs
 脚本打印新证据目录；父脚本成功退出0，内部CLI退化退出2、仅缺usage退出3是预期结果，不是安装失败。检查该目录的`diff.txt`、`gate.json`与`evidence.json`：基线通过，候选失败；错误数0→2、工具调用3→4，错误关联candidate-e3/e9；tokens未记录。若手工复查，使用`node dist/cli.js diff baseline candidate --db <证据目录>/traces.db --json --check status --check errors=0`。
 
 本例都是合成数据和有意注入的故障。真实价值试用需由独立开发者选择自己的两次可比运行，事先选定检查项；先确认任务/模型/工具权限可比。第二次试用应是另一天或另一项实际任务，自行决定是否继续用，不以同一脚本连跑两次冒充留存。
+
+第二个脚本则回放一次真实编码记录的完整与截断投影，预期23/12事件、passed/running和1个缺少结果的工具调用；内部比较门禁返回3，父脚本返回0。它仍是维护者事后演示，不是两次独立运行。来源、时间含义和缺失指标边界见[回放说明](coding-session-replay.md)。
 
 每次只记录：日期、源码SHA/运行时、任务与比较目标、预设检查项、是否独立完成、卡点与维护者帮助、找到的错误event ID、结果是否改变下一步、下次是否仍想使用。参与者可用自选代号，不要求身份资料。维护者演示与独立使用分别标注；尚无人使用时填写“未测量”。
 
